@@ -7,6 +7,10 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Firebase SDK Compat -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 </head>
 <body class="bg-gray-100 font-sans pb-10">
     <div class="container mx-auto p-4 max-w-6xl">
@@ -134,11 +138,24 @@
     </div>
 
     <script>
-        let entradas = JSON.parse(localStorage.getItem('entradasMotorista')) || [];
-        let metaMensal = parseFloat(localStorage.getItem('metaMotorista')) || 0;
-        let chartInstance = null;
+        // Configuração do Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyDxD4hm8RsTkihEL320tt5V1GH5dWyBIFE",
+            authDomain: "controle-financeiro-moto-b139a.firebaseapp.com",
+            projectId: "controle-financeiro-moto-b139a",
+            storageBucket: "controle-financeiro-moto-b139a.firebasestorage.app",
+            messagingSenderId: "711816668835",
+            appId: "1:711816668835:web:b085fb4cfd0ad66c528116",
+            measurementId: "G-H18F08LHVX"
+        };
 
-        document.getElementById('meta-input').value = metaMensal > 0 ? metaMensal : '';
+        // Inicializando Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        let entradas = [];
+        let metaMensal = 0;
+        let chartInstance = null;
 
         // Configurar filtro de mês para o mês atual
         const hoje = new Date();
@@ -149,13 +166,32 @@
 
         const formatarMoeda = (valor) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor);
         
+        // Escutar Meta Mensal em tempo real
+        db.collection("config").doc("meta").onSnapshot((doc) => {
+            if (doc.exists) {
+                metaMensal = doc.data().valor;
+            } else {
+                metaMensal = 0;
+            }
+            document.getElementById('meta-input').value = metaMensal > 0 ? metaMensal : '';
+            atualizarInterface();
+        });
+
+        // Escutar Lançamentos em tempo real
+        db.collection("lancamentos").orderBy("data").onSnapshot((snapshot) => {
+            entradas = [];
+            snapshot.forEach((doc) => {
+                entradas.push({ id: doc.id, ...doc.data() });
+            });
+            atualizarInterface();
+        });
+
         function salvarMeta() {
             const valor = parseFloat(document.getElementById('meta-input').value);
             if (!isNaN(valor) && valor > 0) {
-                metaMensal = valor;
-                localStorage.setItem('metaMotorista', metaMensal);
-                atualizarInterface();
-                alert('Meta salva com sucesso!');
+                db.collection("config").doc("meta").set({ valor: valor })
+                .then(() => alert('Meta salva com sucesso na nuvem!'))
+                .catch((error) => alert('Erro ao salvar meta: ' + error));
             }
         }
 
@@ -175,35 +211,35 @@
             const combustivel = (km / consumo) * precoLitro;
             const liquido = bruto - combustivel - outros;
 
+            const lancamentoData = { data, horas, bruto, km, consumo, precoLitro, combustivel, outros, liquido };
+
+            const btnSubmit = document.getElementById('btn-submit');
+            btnSubmit.innerText = "Salvando...";
+            btnSubmit.disabled = true;
+
             if (idEdit) {
                 // Modo edição
-                const index = entradas.findIndex(e => e.id == idEdit);
-                if(index !== -1) {
-                    entradas[index] = { id: parseInt(idEdit), data, horas, bruto, km, consumo, precoLitro, combustivel, outros, liquido };
-                }
-                cancelarEdicao();
+                db.collection("lancamentos").doc(idEdit).update(lancamentoData).then(() => {
+                    cancelarEdicao();
+                }).finally(() => {
+                    btnSubmit.disabled = false;
+                });
             } else {
                 // Novo registro
-                const novaEntrada = { id: Date.now(), data, horas, bruto, km, consumo, precoLitro, combustivel, outros, liquido };
-                entradas.push(novaEntrada);
-                
-                // Mudar o filtro do mês para o mês recém adicionado se não for o mesmo
-                const mesEntrada = data.substring(0, 7);
-                document.getElementById('filtro-mes').value = mesEntrada;
+                db.collection("lancamentos").add(lancamentoData).then(() => {
+                    const mesEntrada = data.substring(0, 7);
+                    document.getElementById('filtro-mes').value = mesEntrada;
+                    this.reset();
+                }).finally(() => {
+                    btnSubmit.innerText = "Adicionar Dia";
+                    btnSubmit.disabled = false;
+                });
             }
-            
-            entradas.sort((a, b) => new Date(a.data) - new Date(b.data));
-            localStorage.setItem('entradasMotorista', JSON.stringify(entradas));
-            
-            if(!idEdit) this.reset();
-            atualizarInterface();
         });
 
         function deletarEntrada(id) {
             if(confirm("Tem certeza que deseja excluir este dia?")) {
-                entradas = entradas.filter(e => e.id !== id);
-                localStorage.setItem('entradasMotorista', JSON.stringify(entradas));
-                atualizarInterface();
+                db.collection("lancamentos").doc(id).delete();
             }
         }
 
@@ -218,13 +254,6 @@
             document.getElementById('km').value = entrada.km;
             document.getElementById('consumo').value = entrada.consumo || '';
             document.getElementById('preco_litro').value = entrada.precoLitro || '';
-            // Se for entrada antiga e não tiver consumo/precoLitro salvo
-            if(!entrada.consumo && entrada.combustivel > 0) {
-               // Apenas para não bugar o form, como ele exige os campos
-               document.getElementById('consumo').value = (entrada.km / (entrada.combustivel / 5)).toFixed(1); // Chute de 5 reais o litro pra preencher algo
-               document.getElementById('preco_litro').value = 5.00;
-            }
-
             document.getElementById('outros').value = entrada.outros;
 
             document.getElementById('titulo-form').innerText = "Editar Lançamento";
@@ -250,9 +279,8 @@
         }
 
         function atualizarInterface() {
-            const mesSelecionado = document.getElementById('filtro-mes').value; // ex: "2026-10"
+            const mesSelecionado = document.getElementById('filtro-mes').value;
             
-            // Filtrar entradas pelo mês selecionado
             const entradasFiltradas = entradas.filter(e => e.data.startsWith(mesSelecionado));
 
             const tbody = document.getElementById('tabela-corpo');
@@ -273,7 +301,7 @@
                 const [ano, mes, dia] = e.data.split('-');
                 const dataFormatada = `${dia}/${mes}/${ano}`;
                 
-                diasGrafico.push(dia); // Para o gráfico
+                diasGrafico.push(dia);
                 liquidoGrafico.push(e.liquido);
 
                 const row = document.createElement('tr');
@@ -284,8 +312,8 @@
                     <td class="py-2 px-4">${e.km}</td>
                     <td class="py-2 px-4 font-semibold ${e.liquido >= 0 ? 'text-green-600' : 'text-red-600'}">${formatarMoeda(e.liquido)}</td>
                     <td class="py-2 px-4 text-center space-x-2">
-                        <button onclick="editarEntrada(${e.id})" class="text-blue-500 hover:text-blue-700 transition" title="Editar"><i class="fas fa-edit"></i></button>
-                        <button onclick="deletarEntrada(${e.id})" class="text-red-500 hover:text-red-700 transition" title="Excluir"><i class="fas fa-trash"></i></button>
+                        <button onclick="editarEntrada('${e.id}')" class="text-blue-500 hover:text-blue-700 transition" title="Editar"><i class="fas fa-edit"></i></button>
+                        <button onclick="deletarEntrada('${e.id}')" class="text-red-500 hover:text-red-700 transition" title="Excluir"><i class="fas fa-trash"></i></button>
                     </td>
                 `;
                 tbody.appendChild(row);
@@ -362,8 +390,6 @@
                 }
             });
         }
-
-        atualizarInterface();
     </script>
 </body>
 </html>
