@@ -4,8 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Controle Financeiro - Motorista</title>
+    <link rel="manifest" href="manifest.json">
     <link rel="icon" type="image/jpeg" href="favicon.jpg">
-    <link rel="apple-touch-icon" href="favicon.jpg">
+    <link rel="apple-touch-icon" href="icon-512.jpg">
+    <meta name="theme-color" content="#1e3a5f">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Moto Finance">
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -541,6 +547,17 @@
                     scales: { y: { beginAtZero: true } },
                     plugins: { legend: { display: false } }
                 }
+            });
+        }
+    </script>
+
+    <script>
+        // ── Service Worker (PWA) ───────────────────────────────────
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(() => console.log('✅ PWA: Service Worker registrado'))
+                    .catch(err => console.log('SW erro:', err));
             });
         }
     </script>
