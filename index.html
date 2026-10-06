@@ -7,27 +7,83 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    
-    <!-- Firebase SDK Compat -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+    <style>
+        .dark body { background-color: #111827; color: #f9fafb; }
+
+        /* Dark mode manual classes */
+        html.dark .bg-white { background-color: #1f2937 !important; }
+        html.dark .bg-gray-100 { background-color: #111827 !important; }
+        html.dark .bg-gray-50 { background-color: #374151 !important; }
+        html.dark .bg-blue-50 { background-color: #1e3a5f !important; }
+        html.dark .text-gray-800 { color: #f3f4f6 !important; }
+        html.dark .text-gray-700 { color: #d1d5db !important; }
+        html.dark .text-gray-600 { color: #9ca3af !important; }
+        html.dark .text-gray-500 { color: #6b7280 !important; }
+        html.dark .border-b { border-color: #374151 !important; }
+        html.dark .border { border-color: #374151 !important; }
+        html.dark input, html.dark select { background-color: #374151 !important; color: #f3f4f6 !important; border-color: #4b5563 !important; }
+        html.dark .shadow-md { box-shadow: 0 4px 6px -1px rgba(0,0,0,0.4) !important; }
+        html.dark tr:hover { background-color: #374151 !important; }
+        html.dark .hover\:bg-gray-50:hover { background-color: #374151 !important; }
+
+        /* Calendar styles */
+        .cal-day {
+            aspect-ratio: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            font-size: 0.75rem;
+            cursor: default;
+            padding: 2px;
+            min-width: 0;
+        }
+        .cal-day.worked-good { background-color: #dcfce7; color: #166534; }
+        .cal-day.worked-bad  { background-color: #fee2e2; color: #991b1b; }
+        .cal-day.not-worked  { background-color: #f3f4f6; color: #9ca3af; }
+        .cal-day.future      { background-color: transparent; color: #d1d5db; }
+        .cal-day.empty       { background-color: transparent; }
+
+        html.dark .cal-day.worked-good { background-color: #14532d; color: #bbf7d0; }
+        html.dark .cal-day.worked-bad  { background-color: #7f1d1d; color: #fecaca; }
+        html.dark .cal-day.not-worked  { background-color: #374151; color: #6b7280; }
+        html.dark .cal-day.future      { background-color: transparent; color: #4b5563; }
+
+        .progress-green { background-color: #22c55e !important; }
+        .progress-yellow { background-color: #eab308 !important; }
+        .progress-blue { background-color: #3b82f6 !important; }
+    </style>
 </head>
-<body class="bg-gray-100 font-sans pb-10">
+<body class="bg-gray-100 font-sans pb-10 transition-colors duration-300">
+
     <div class="container mx-auto p-4 max-w-6xl">
+        <!-- Header -->
         <div class="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
             <h1 class="text-3xl font-bold text-gray-800"><i class="fas fa-car-side text-blue-600"></i> Controle Financeiro</h1>
-            <div class="flex items-center bg-white p-2 rounded-lg shadow-sm">
-                <label class="font-medium text-gray-700 mr-2"><i class="far fa-calendar-alt"></i> Mês/Ano:</label>
-                <input type="month" id="filtro-mes" class="border-0 focus:ring-0 text-gray-700 font-semibold cursor-pointer" onchange="atualizarInterface()">
+            <div class="flex items-center gap-3">
+                <div class="flex items-center bg-white p-2 rounded-lg shadow-sm">
+                    <label class="font-medium text-gray-700 mr-2"><i class="far fa-calendar-alt"></i></label>
+                    <input type="month" id="filtro-mes" class="border-0 focus:ring-0 text-gray-700 font-semibold cursor-pointer" onchange="atualizarInterface()">
+                </div>
+                <button onclick="toggleDark()" class="bg-white p-2 w-10 h-10 rounded-lg shadow-sm text-gray-600 hover:text-blue-600 transition text-lg" title="Modo Escuro">
+                    <i class="fas fa-moon"></i>
+                </button>
             </div>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <!-- Painel de Resumo -->
-            <div class="lg:col-span-1 bg-white p-6 rounded-lg shadow-md h-fit space-y-6">
-                <div>
-                    <h2 class="text-xl font-semibold mb-4 border-b pb-2">Resumo do Mês</h2>
-                    
+            <!-- Coluna Esquerda: Resumo + Calendário -->
+            <div class="lg:col-span-1 space-y-6">
+
+                <!-- Resumo -->
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h2 class="text-xl font-semibold mb-4 border-b pb-2 text-gray-800">Resumo do Mês</h2>
                     <div class="mb-4">
                         <label class="block text-sm font-medium text-gray-700">Meta Mensal (R$)</label>
                         <div class="flex mt-1">
@@ -35,49 +91,79 @@
                             <button onclick="salvarMeta()" class="bg-blue-600 text-white px-4 py-2 rounded-r-md hover:bg-blue-700">Salvar</button>
                         </div>
                     </div>
-
                     <div class="space-y-4">
                         <div class="bg-blue-50 p-4 rounded-lg">
                             <p class="text-sm text-gray-500">Total Líquido Acumulado</p>
                             <p class="text-2xl font-bold text-blue-700" id="resumo-total">R$ 0,00</p>
                         </div>
-                        
                         <div>
                             <p class="text-sm text-gray-500 flex justify-between">
                                 <span>Progresso da Meta</span>
                                 <span id="resumo-progresso-txt" class="font-bold text-gray-700">0%</span>
                             </p>
-                            <div class="w-full bg-gray-200 rounded-full h-2.5 mt-1">
-                                <div class="bg-blue-600 h-2.5 rounded-full" id="resumo-barra" style="width: 0%"></div>
+                            <div class="w-full bg-gray-200 rounded-full h-3 mt-1">
+                                <div class="h-3 rounded-full transition-all duration-500 progress-blue" id="resumo-barra" style="width: 0%"></div>
                             </div>
-                            <p class="text-xs text-red-500 mt-1" id="resumo-falta">Faltam: R$ 0,00</p>
+                            <p class="text-xs mt-1" id="resumo-falta">Faltam: R$ 0,00</p>
                         </div>
-
-                        <div class="grid grid-cols-2 gap-4 pt-4 border-t">
-                            <div>
-                                <p class="text-xs text-gray-500">Média por Hora</p>
-                                <p class="text-lg font-semibold text-gray-800" id="resumo-hora">R$ 0,00</p>
+                        <div class="grid grid-cols-2 gap-3 pt-4 border-t">
+                            <div class="bg-gray-50 p-3 rounded-lg">
+                                <p class="text-xs text-gray-500">Média/Hora</p>
+                                <p class="text-md font-semibold text-gray-800" id="resumo-hora">R$ 0,00</p>
                             </div>
-                            <div>
-                                <p class="text-xs text-gray-500">Média por KM</p>
-                                <p class="text-lg font-semibold text-gray-800" id="resumo-km">R$ 0,00</p>
+                            <div class="bg-gray-50 p-3 rounded-lg">
+                                <p class="text-xs text-gray-500">Média/KM</p>
+                                <p class="text-md font-semibold text-gray-800" id="resumo-km">R$ 0,00</p>
+                            </div>
+                        </div>
+                        <!-- Breakdown de gastos -->
+                        <div class="pt-4 border-t">
+                            <p class="text-sm font-semibold text-gray-700 mb-2">Detalhamento de Gastos</p>
+                            <div class="space-y-2">
+                                <div class="flex justify-between text-sm">
+                                    <span class="text-gray-500"><i class="fas fa-gas-pump text-yellow-500 mr-1"></i> Combustível</span>
+                                    <span class="font-medium text-red-500" id="resumo-combustivel">R$ 0,00</span>
+                                </div>
+                                <div class="flex justify-between text-sm">
+                                    <span class="text-gray-500"><i class="fas fa-tools text-orange-500 mr-1"></i> Manut./Refeição</span>
+                                    <span class="font-medium text-red-500" id="resumo-outros">R$ 0,00</span>
+                                </div>
+                                <div class="flex justify-between text-sm border-t pt-2">
+                                    <span class="text-gray-500"><i class="fas fa-receipt text-gray-400 mr-1"></i> Faturamento Bruto</span>
+                                    <span class="font-medium text-gray-800" id="resumo-bruto">R$ 0,00</span>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
 
+                <!-- Calendário -->
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h3 class="text-md font-semibold text-gray-700 mb-3"><i class="far fa-calendar text-blue-500 mr-1"></i> Calendário do Mês</h3>
+                    <div class="flex gap-2 flex-wrap mb-3 text-xs">
+                        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-green-200 inline-block"></span> Bom dia</span>
+                        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-red-200 inline-block"></span> Dia fraco</span>
+                        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-gray-200 inline-block"></span> Não trabalhou</span>
+                    </div>
+                    <div class="grid grid-cols-7 gap-1 text-center text-xs text-gray-500 mb-1">
+                        <div>D</div><div>S</div><div>T</div><div>Q</div><div>Q</div><div>S</div><div>S</div>
+                    </div>
+                    <div class="grid grid-cols-7 gap-1" id="calendario"></div>
+                </div>
+
                 <!-- Gráfico -->
-                <div class="pt-4 border-t">
-                    <h3 class="text-md font-semibold text-gray-700 mb-2"><i class="fas fa-chart-bar text-blue-500"></i> Faturamento Diário (Líquido)</h3>
-                    <canvas id="graficoFaturamento" width="400" height="250"></canvas>
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h3 class="text-md font-semibold text-gray-700 mb-2"><i class="fas fa-chart-bar text-blue-500 mr-1"></i> Faturamento Diário</h3>
+                    <canvas id="graficoFaturamento" height="200"></canvas>
                 </div>
             </div>
 
-            <!-- Área Principal -->
+            <!-- Coluna Direita: Formulário + Tabela -->
             <div class="lg:col-span-2 space-y-6">
-                <!-- Formulário de Novo Lançamento -->
+
+                <!-- Formulário -->
                 <div class="bg-white p-6 rounded-lg shadow-md">
-                    <h2 class="text-xl font-semibold mb-4 border-b pb-2" id="titulo-form">Novo Lançamento Diário</h2>
+                    <h2 class="text-xl font-semibold mb-4 border-b pb-2 text-gray-800" id="titulo-form">Novo Lançamento Diário</h2>
                     <form id="lancamento-form" class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <input type="hidden" id="edit-id" value="">
                         <div>
@@ -109,28 +195,37 @@
                             <input type="number" step="0.01" id="outros" required class="mt-1 border p-2 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-blue-500">
                         </div>
                         <div class="md:col-span-2 mt-2 flex gap-2">
-                            <button type="submit" id="btn-submit" class="flex-1 bg-green-600 text-white font-bold py-2 px-4 rounded-md hover:bg-green-700 transition">Adicionar Dia</button>
-                            <button type="button" id="btn-cancel" onclick="cancelarEdicao()" class="hidden bg-gray-500 text-white font-bold py-2 px-4 rounded-md hover:bg-gray-600 transition">Cancelar</button>
+                            <button type="submit" id="btn-submit" class="flex-1 bg-green-600 text-white font-bold py-2 px-4 rounded-md hover:bg-green-700 transition">
+                                <i class="fas fa-plus mr-1"></i> Adicionar Dia
+                            </button>
+                            <button type="button" id="btn-cancel" onclick="cancelarEdicao()" class="hidden bg-gray-500 text-white font-bold py-2 px-4 rounded-md hover:bg-gray-600 transition">
+                                Cancelar
+                            </button>
                         </div>
                     </form>
                 </div>
 
-                <!-- Tabela de Lançamentos -->
+                <!-- Tabela -->
                 <div class="bg-white p-6 rounded-lg shadow-md overflow-x-auto">
-                    <h2 class="text-xl font-semibold mb-4 border-b pb-2">Histórico de Lançamentos (Mês Selecionado)</h2>
+                    <div class="flex justify-between items-center mb-4 border-b pb-2">
+                        <h2 class="text-xl font-semibold text-gray-800">Histórico</h2>
+                        <button onclick="exportarExcel()" class="bg-emerald-600 text-white text-sm px-4 py-2 rounded-md hover:bg-emerald-700 transition">
+                            <i class="fas fa-file-excel mr-1"></i> Exportar Excel
+                        </button>
+                    </div>
                     <table class="min-w-full text-sm text-left">
                         <thead class="bg-gray-50 text-gray-600">
                             <tr>
-                                <th class="py-2 px-4 border-b">Data</th>
-                                <th class="py-2 px-4 border-b">Horas</th>
-                                <th class="py-2 px-4 border-b">KM</th>
-                                <th class="py-2 px-4 border-b">Líquido (R$)</th>
-                                <th class="py-2 px-4 border-b text-center">Ações</th>
+                                <th class="py-2 px-3 border-b">Data</th>
+                                <th class="py-2 px-3 border-b">Horas</th>
+                                <th class="py-2 px-3 border-b">KM</th>
+                                <th class="py-2 px-3 border-b">Bruto</th>
+                                <th class="py-2 px-3 border-b">Gastos</th>
+                                <th class="py-2 px-3 border-b">Líquido</th>
+                                <th class="py-2 px-3 border-b text-center">Ações</th>
                             </tr>
                         </thead>
-                        <tbody id="tabela-corpo">
-                            <!-- JS vai popular aqui -->
-                        </tbody>
+                        <tbody id="tabela-corpo"></tbody>
                     </table>
                 </div>
             </div>
@@ -138,255 +233,311 @@
     </div>
 
     <script>
-        // Configuração do Firebase
+        // ── Firebase ───────────────────────────────────────────────
         const firebaseConfig = {
             apiKey: "AIzaSyDxD4hm8RsTkihEL320tt5V1GH5dWyBIFE",
             authDomain: "controle-financeiro-moto-b139a.firebaseapp.com",
             projectId: "controle-financeiro-moto-b139a",
             storageBucket: "controle-financeiro-moto-b139a.firebasestorage.app",
             messagingSenderId: "711816668835",
-            appId: "1:711816668835:web:b085fb4cfd0ad66c528116",
-            measurementId: "G-H18F08LHVX"
+            appId: "1:711816668835:web:b085fb4cfd0ad66c528116"
         };
-
-        // Inicializando Firebase
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
+        // ── Estado ─────────────────────────────────────────────────
         let entradas = [];
         let metaMensal = 0;
         let chartInstance = null;
 
-        // Configurar filtro de mês para o mês atual
+        // Mês atual padrão
         const hoje = new Date();
         const mesAtual = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`;
-        if(!document.getElementById('filtro-mes').value) {
-            document.getElementById('filtro-mes').value = mesAtual;
+        document.getElementById('filtro-mes').value = mesAtual;
+
+        // Modo escuro persistente
+        if (localStorage.getItem('darkMode') === 'true') document.documentElement.classList.add('dark');
+
+        function toggleDark() {
+            document.documentElement.classList.toggle('dark');
+            localStorage.setItem('darkMode', document.documentElement.classList.contains('dark'));
         }
 
-        const formatarMoeda = (valor) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor);
-        
-        // Escutar Meta Mensal em tempo real
+        // ── Formatação ─────────────────────────────────────────────
+        const fmt = (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
+
+        // ── Firebase Listeners ─────────────────────────────────────
         db.collection("config").doc("meta").onSnapshot((doc) => {
-            if (doc.exists) {
-                metaMensal = doc.data().valor;
-            } else {
-                metaMensal = 0;
-            }
+            metaMensal = doc.exists ? (doc.data().valor || 0) : 0;
             document.getElementById('meta-input').value = metaMensal > 0 ? metaMensal : '';
             atualizarInterface();
         });
 
-        // Escutar Lançamentos em tempo real
         db.collection("lancamentos").orderBy("data").onSnapshot((snapshot) => {
             entradas = [];
-            snapshot.forEach((doc) => {
-                entradas.push({ id: doc.id, ...doc.data() });
-            });
+            snapshot.forEach((doc) => entradas.push({ id: doc.id, ...doc.data() }));
             atualizarInterface();
         });
 
+        // ── Salvar Meta ────────────────────────────────────────────
         function salvarMeta() {
             const valor = parseFloat(document.getElementById('meta-input').value);
             if (!isNaN(valor) && valor > 0) {
-                db.collection("config").doc("meta").set({ valor: valor })
-                .then(() => alert('Meta salva com sucesso na nuvem!'))
-                .catch((error) => alert('Erro ao salvar meta: ' + error));
+                db.collection("config").doc("meta").set({ valor })
+                    .catch(e => alert('Erro ao salvar meta: ' + e));
             }
         }
 
-        document.getElementById('lancamento-form').addEventListener('submit', function(e) {
+        // ── Formulário ─────────────────────────────────────────────
+        document.getElementById('lancamento-form').addEventListener('submit', function (e) {
             e.preventDefault();
-            
             const idEdit = document.getElementById('edit-id').value;
-            
-            const data = document.getElementById('data').value;
-            const horas = parseFloat(document.getElementById('horas').value);
-            const bruto = parseFloat(document.getElementById('bruto').value);
-            const km = parseFloat(document.getElementById('km').value);
-            const consumo = parseFloat(document.getElementById('consumo').value);
+            const data       = document.getElementById('data').value;
+            const horas      = parseFloat(document.getElementById('horas').value);
+            const bruto      = parseFloat(document.getElementById('bruto').value);
+            const km         = parseFloat(document.getElementById('km').value);
+            const consumo    = parseFloat(document.getElementById('consumo').value);
             const precoLitro = parseFloat(document.getElementById('preco_litro').value);
-            const outros = parseFloat(document.getElementById('outros').value);
-
+            const outros     = parseFloat(document.getElementById('outros').value);
             const combustivel = (km / consumo) * precoLitro;
-            const liquido = bruto - combustivel - outros;
+            const liquido    = bruto - combustivel - outros;
 
-            const lancamentoData = { data, horas, bruto, km, consumo, precoLitro, combustivel, outros, liquido };
+            const payload = { data, horas, bruto, km, consumo, precoLitro, combustivel, outros, liquido };
 
-            const btnSubmit = document.getElementById('btn-submit');
-            btnSubmit.innerText = "Salvando...";
-            btnSubmit.disabled = true;
+            const btn = document.getElementById('btn-submit');
+            btn.innerText = 'Salvando...';
+            btn.disabled = true;
+
+            const done = () => { btn.disabled = false; };
 
             if (idEdit) {
-                // Modo edição
-                db.collection("lancamentos").doc(idEdit).update(lancamentoData).then(() => {
-                    cancelarEdicao();
-                }).finally(() => {
-                    btnSubmit.disabled = false;
-                });
+                db.collection("lancamentos").doc(idEdit).update(payload).then(cancelarEdicao).finally(done);
             } else {
-                // Novo registro
-                db.collection("lancamentos").add(lancamentoData).then(() => {
-                    const mesEntrada = data.substring(0, 7);
-                    document.getElementById('filtro-mes').value = mesEntrada;
+                db.collection("lancamentos").add(payload).then(() => {
+                    document.getElementById('filtro-mes').value = data.substring(0, 7);
                     this.reset();
-                }).finally(() => {
-                    btnSubmit.innerText = "Adicionar Dia";
-                    btnSubmit.disabled = false;
-                });
+                    btn.innerText = 'Adicionar Dia';
+                }).finally(done);
             }
         });
 
+        // ── CRUD ───────────────────────────────────────────────────
         function deletarEntrada(id) {
-            if(confirm("Tem certeza que deseja excluir este dia?")) {
+            if (confirm("Tem certeza que deseja excluir este dia?"))
                 db.collection("lancamentos").doc(id).delete();
-            }
         }
 
         function editarEntrada(id) {
-            const entrada = entradas.find(e => e.id === id);
-            if(!entrada) return;
+            const e = entradas.find(e => e.id === id);
+            if (!e) return;
+            document.getElementById('edit-id').value = e.id;
+            document.getElementById('data').value = e.data;
+            document.getElementById('horas').value = e.horas;
+            document.getElementById('bruto').value = e.bruto;
+            document.getElementById('km').value = e.km;
+            document.getElementById('consumo').value = e.consumo || '';
+            document.getElementById('preco_litro').value = e.precoLitro || '';
+            document.getElementById('outros').value = e.outros;
 
-            document.getElementById('edit-id').value = entrada.id;
-            document.getElementById('data').value = entrada.data;
-            document.getElementById('horas').value = entrada.horas;
-            document.getElementById('bruto').value = entrada.bruto;
-            document.getElementById('km').value = entrada.km;
-            document.getElementById('consumo').value = entrada.consumo || '';
-            document.getElementById('preco_litro').value = entrada.precoLitro || '';
-            document.getElementById('outros').value = entrada.outros;
+            const titulo = document.getElementById('titulo-form');
+            titulo.innerText = "Editar Lançamento";
+            titulo.className = "text-xl font-semibold mb-4 border-b pb-2 text-blue-600";
 
-            document.getElementById('titulo-form').innerText = "Editar Lançamento";
-            document.getElementById('titulo-form').className = "text-xl font-semibold mb-4 border-b pb-2 text-blue-600";
-            
-            document.getElementById('btn-submit').innerText = "Salvar Alterações";
-            document.getElementById('btn-submit').className = "flex-1 bg-blue-600 text-white font-bold py-2 px-4 rounded-md hover:bg-blue-700 transition";
+            const btn = document.getElementById('btn-submit');
+            btn.innerText = "Salvar Alterações";
+            btn.className = "flex-1 bg-blue-600 text-white font-bold py-2 px-4 rounded-md hover:bg-blue-700 transition";
             document.getElementById('btn-cancel').classList.remove('hidden');
-            
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
         function cancelarEdicao() {
             document.getElementById('edit-id').value = '';
             document.getElementById('lancamento-form').reset();
-            
-            document.getElementById('titulo-form').innerText = "Novo Lançamento Diário";
-            document.getElementById('titulo-form').className = "text-xl font-semibold mb-4 border-b pb-2";
-            
-            document.getElementById('btn-submit').innerText = "Adicionar Dia";
-            document.getElementById('btn-submit').className = "flex-1 bg-green-600 text-white font-bold py-2 px-4 rounded-md hover:bg-green-700 transition";
+            const titulo = document.getElementById('titulo-form');
+            titulo.innerText = "Novo Lançamento Diário";
+            titulo.className = "text-xl font-semibold mb-4 border-b pb-2 text-gray-800";
+            const btn = document.getElementById('btn-submit');
+            btn.innerText = "Adicionar Dia";
+            btn.className = "flex-1 bg-green-600 text-white font-bold py-2 px-4 rounded-md hover:bg-green-700 transition";
             document.getElementById('btn-cancel').classList.add('hidden');
         }
 
-        function atualizarInterface() {
-            const mesSelecionado = document.getElementById('filtro-mes').value;
-            
-            const entradasFiltradas = entradas.filter(e => e.data.startsWith(mesSelecionado));
+        // ── Exportar Excel ─────────────────────────────────────────
+        function exportarExcel() {
+            const mes = document.getElementById('filtro-mes').value;
+            const filtradas = entradas.filter(e => e.data.startsWith(mes));
+            if (filtradas.length === 0) { alert('Nenhum dado para exportar neste mês.'); return; }
 
+            const dados = filtradas.map(e => ({
+                'Data': e.data,
+                'Horas Trabalhadas': e.horas,
+                'KM Rodados': e.km,
+                'Faturamento Bruto (R$)': e.bruto.toFixed(2),
+                'Combustível (R$)': e.combustivel.toFixed(2),
+                'Manut./Refeição (R$)': e.outros.toFixed(2),
+                'Faturamento Líquido (R$)': e.liquido.toFixed(2),
+            }));
+
+            const ws = XLSX.utils.json_to_sheet(dados);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Lançamentos");
+            XLSX.writeFile(wb, `controle_${mes}.xlsx`);
+        }
+
+        // ── Interface Principal ────────────────────────────────────
+        function atualizarInterface() {
+            const mes = document.getElementById('filtro-mes').value;
+            const filtradas = entradas.filter(e => e.data.startsWith(mes));
+
+            let totalLiquido = 0, totalHoras = 0, totalKm = 0, totalBruto = 0, totalComb = 0, totalOutros = 0;
+            const diasGraf = [], liqGraf = [];
             const tbody = document.getElementById('tabela-corpo');
             tbody.innerHTML = '';
-            
-            let totalLiquido = 0;
-            let totalHoras = 0;
-            let totalKm = 0;
 
-            const diasGrafico = [];
-            const liquidoGrafico = [];
+            filtradas.forEach(e => {
+                totalLiquido  += e.liquido;
+                totalHoras    += e.horas;
+                totalKm       += e.km;
+                totalBruto    += e.bruto;
+                totalComb     += e.combustivel;
+                totalOutros   += e.outros;
 
-            entradasFiltradas.forEach(e => {
-                totalLiquido += e.liquido;
-                totalHoras += e.horas;
-                totalKm += e.km;
+                const [ano, m, dia] = e.data.split('-');
+                diasGraf.push(dia);
+                liqGraf.push(e.liquido);
 
-                const [ano, mes, dia] = e.data.split('-');
-                const dataFormatada = `${dia}/${mes}/${ano}`;
-                
-                diasGrafico.push(dia);
-                liquidoGrafico.push(e.liquido);
-
+                const gastos = e.combustivel + e.outros;
                 const row = document.createElement('tr');
                 row.className = "hover:bg-gray-50 border-b";
                 row.innerHTML = `
-                    <td class="py-2 px-4">${dataFormatada}</td>
-                    <td class="py-2 px-4">${e.horas}h</td>
-                    <td class="py-2 px-4">${e.km}</td>
-                    <td class="py-2 px-4 font-semibold ${e.liquido >= 0 ? 'text-green-600' : 'text-red-600'}">${formatarMoeda(e.liquido)}</td>
-                    <td class="py-2 px-4 text-center space-x-2">
-                        <button onclick="editarEntrada('${e.id}')" class="text-blue-500 hover:text-blue-700 transition" title="Editar"><i class="fas fa-edit"></i></button>
-                        <button onclick="deletarEntrada('${e.id}')" class="text-red-500 hover:text-red-700 transition" title="Excluir"><i class="fas fa-trash"></i></button>
-                    </td>
-                `;
+                    <td class="py-2 px-3">${dia}/${m}/${ano}</td>
+                    <td class="py-2 px-3">${e.horas}h</td>
+                    <td class="py-2 px-3">${e.km} km</td>
+                    <td class="py-2 px-3 text-gray-700">${fmt(e.bruto)}</td>
+                    <td class="py-2 px-3 text-red-500">-${fmt(gastos)}</td>
+                    <td class="py-2 px-3 font-semibold ${e.liquido >= 0 ? 'text-green-600' : 'text-red-600'}">${fmt(e.liquido)}</td>
+                    <td class="py-2 px-3 text-center space-x-2">
+                        <button onclick="editarEntrada('${e.id}')" class="text-blue-500 hover:text-blue-700" title="Editar"><i class="fas fa-edit"></i></button>
+                        <button onclick="deletarEntrada('${e.id}')" class="text-red-500 hover:text-red-700" title="Excluir"><i class="fas fa-trash"></i></button>
+                    </td>`;
                 tbody.appendChild(row);
             });
 
-            if (entradasFiltradas.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="5" class="py-4 text-center text-gray-500">Nenhum lançamento encontrado neste mês.</td></tr>`;
+            if (filtradas.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" class="py-6 text-center text-gray-500">Nenhum lançamento neste mês.</td></tr>`;
             }
 
-            document.getElementById('resumo-total').innerText = formatarMoeda(totalLiquido);
-            
-            const mediaHora = totalHoras > 0 ? totalLiquido / totalHoras : 0;
-            const mediaKm = totalKm > 0 ? totalLiquido / totalKm : 0;
-            
-            document.getElementById('resumo-hora').innerText = formatarMoeda(mediaHora);
-            document.getElementById('resumo-km').innerText = formatarMoeda(mediaKm);
+            // Resumo
+            document.getElementById('resumo-total').innerText     = fmt(totalLiquido);
+            document.getElementById('resumo-bruto').innerText     = fmt(totalBruto);
+            document.getElementById('resumo-combustivel').innerText = fmt(totalComb);
+            document.getElementById('resumo-outros').innerText    = fmt(totalOutros);
+            document.getElementById('resumo-hora').innerText = totalHoras > 0 ? fmt(totalLiquido / totalHoras) : 'R$ 0,00';
+            document.getElementById('resumo-km').innerText   = totalKm > 0   ? fmt(totalLiquido / totalKm)    : 'R$ 0,00';
 
+            // Progresso da meta
+            const barra = document.getElementById('resumo-barra');
             if (metaMensal > 0) {
-                let progresso = (totalLiquido / metaMensal) * 100;
-                let falta = metaMensal - totalLiquido;
-                
-                if (progresso < 0) progresso = 0;
-                
-                document.getElementById('resumo-progresso-txt').innerText = `${progresso.toFixed(1)}%`;
-                document.getElementById('resumo-barra').style.width = `${Math.min(progresso, 100)}%`;
-                
+                const pct = Math.max(0, (totalLiquido / metaMensal) * 100);
+                const falta = metaMensal - totalLiquido;
+                document.getElementById('resumo-progresso-txt').innerText = `${pct.toFixed(1)}%`;
+                barra.style.width = `${Math.min(pct, 100)}%`;
+                barra.classList.remove('progress-blue', 'progress-yellow', 'progress-green');
+                if (pct >= 100) barra.classList.add('progress-green');
+                else if (pct >= 80) barra.classList.add('progress-yellow');
+                else barra.classList.add('progress-blue');
+
+                const faltaEl = document.getElementById('resumo-falta');
                 if (falta > 0) {
-                    document.getElementById('resumo-falta').innerText = `Faltam: ${formatarMoeda(falta)}`;
-                    document.getElementById('resumo-falta').className = "text-xs text-red-500 mt-1";
+                    faltaEl.innerText = `Faltam: ${fmt(falta)}`;
+                    faltaEl.className = "text-xs text-red-500 mt-1";
                 } else {
-                    document.getElementById('resumo-falta').innerText = "Meta Atingida! 🎉";
-                    document.getElementById('resumo-falta').className = "text-xs text-green-600 font-bold mt-1";
+                    faltaEl.innerText = "🎉 Meta Atingida!";
+                    faltaEl.className = "text-xs text-green-600 font-bold mt-1";
                 }
             } else {
                 document.getElementById('resumo-progresso-txt').innerText = "0%";
-                document.getElementById('resumo-barra').style.width = "0%";
+                barra.style.width = "0%";
                 document.getElementById('resumo-falta').innerText = "Defina uma meta acima";
                 document.getElementById('resumo-falta').className = "text-xs text-gray-500 mt-1";
             }
 
-            atualizarGrafico(diasGrafico, liquidoGrafico);
+            // Calendário e gráfico
+            renderCalendario(mes, filtradas);
+            renderGrafico(diasGraf, liqGraf);
         }
 
-        function atualizarGrafico(labels, data) {
-            const ctx = document.getElementById('graficoFaturamento').getContext('2d');
-            
-            if (chartInstance) {
-                chartInstance.destroy();
+        // ── Calendário ─────────────────────────────────────────────
+        function renderCalendario(mes, filtradas) {
+            const [ano, m] = mes.split('-').map(Number);
+            const totalDias = new Date(ano, m, 0).getDate();
+            const primeiroDia = new Date(ano, m - 1, 1).getDay(); // 0=Dom
+
+            // Calcular média dos dias trabalhados para definir "bom" vs "fraco"
+            const liquidosPorDia = {};
+            filtradas.forEach(e => {
+                const d = parseInt(e.data.split('-')[2]);
+                liquidosPorDia[d] = e.liquido;
+            });
+            const valores = Object.values(liquidosPorDia);
+            const mediaDia = valores.length > 0 ? valores.reduce((a, b) => a + b, 0) / valores.length : 0;
+
+            const hojeData = new Date();
+            const hojeAno = hojeData.getFullYear();
+            const hojeM = hojeData.getMonth() + 1;
+            const hojeD = hojeData.getDate();
+
+            const cal = document.getElementById('calendario');
+            cal.innerHTML = '';
+
+            // Células vazias antes do primeiro dia
+            for (let i = 0; i < primeiroDia; i++) {
+                const cell = document.createElement('div');
+                cell.className = 'cal-day empty';
+                cal.appendChild(cell);
             }
 
+            for (let d = 1; d <= totalDias; d++) {
+                const cell = document.createElement('div');
+                const isFuture = (ano > hojeAno) || (ano === hojeAno && m > hojeM) || (ano === hojeAno && m === hojeM && d > hojeD);
+
+                if (isFuture) {
+                    cell.className = 'cal-day future';
+                    cell.innerHTML = `<span>${d}</span>`;
+                } else if (liquidosPorDia[d] !== undefined) {
+                    const liq = liquidosPorDia[d];
+                    cell.className = liq >= mediaDia ? 'cal-day worked-good' : 'cal-day worked-bad';
+                    cell.innerHTML = `<span class="font-bold">${d}</span><span class="text-xs">${fmt(liq).replace('R$', '').trim()}</span>`;
+                    cell.title = `${d}/${m}: ${fmt(liq)}`;
+                } else {
+                    cell.className = 'cal-day not-worked';
+                    cell.innerHTML = `<span>${d}</span>`;
+                }
+
+                cal.appendChild(cell);
+            }
+        }
+
+        // ── Gráfico ────────────────────────────────────────────────
+        function renderGrafico(labels, data) {
+            const ctx = document.getElementById('graficoFaturamento').getContext('2d');
+            if (chartInstance) chartInstance.destroy();
             chartInstance = new Chart(ctx, {
                 type: 'bar',
                 data: {
-                    labels: labels,
+                    labels,
                     datasets: [{
-                        label: 'Faturamento Líquido (R$)',
-                        data: data,
-                        backgroundColor: data.map(v => v >= 0 ? 'rgba(37, 99, 235, 0.7)' : 'rgba(220, 38, 38, 0.7)'),
-                        borderColor: data.map(v => v >= 0 ? 'rgb(37, 99, 235)' : 'rgb(220, 38, 38)'),
+                        data,
+                        backgroundColor: data.map(v => v >= 0 ? 'rgba(34,197,94,0.7)' : 'rgba(239,68,68,0.7)'),
+                        borderColor: data.map(v => v >= 0 ? 'rgb(22,163,74)' : 'rgb(220,38,38)'),
                         borderWidth: 1,
                         borderRadius: 4
                     }]
                 },
                 options: {
                     responsive: true,
-                    scales: {
-                        y: {
-                            beginAtZero: true
-                        }
-                    },
-                    plugins: {
-                        legend: { display: false }
-                    }
+                    scales: { y: { beginAtZero: true } },
+                    plugins: { legend: { display: false } }
                 }
             });
         }
