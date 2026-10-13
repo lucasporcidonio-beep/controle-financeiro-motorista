@@ -250,16 +250,23 @@
                     <div class="md:col-span-2">
                         <label class="block text-sm font-medium text-gray-700 mb-2">Modo de Registro de Horas</label>
                         <div class="flex gap-2 mb-3">
-                            <span class="hora-tab active" id="tab-horario" onclick="setModoHora('horario')">
-                                <i class="fas fa-clock mr-1"></i> Horário (início/fim)
-                            </span>
-                            <span class="hora-tab" id="tab-horimetro" onclick="setModoHora('horimetro')">
+                            <span class="hora-tab active" id="tab-horimetro" onclick="setModoHora('horimetro')">
                                 <i class="fas fa-tachometer-alt mr-1"></i> Horímetro
+                            </span>
+                            <span class="hora-tab" id="tab-horario" onclick="setModoHora('horario')">
+                                <i class="fas fa-clock mr-1"></i> Horário (início/fim)
                             </span>
                         </div>
 
+                        <!-- Modo Horímetro -->
+                        <div id="modo-horimetro">
+                            <label class="block text-xs font-medium text-gray-600">Horas de Direção (HH:MM)</label>
+                            <input type="time" id="horimetro" class="mt-1 border p-2 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-blue-500" oninput="calcularHoras()">
+                            <p class="text-xs text-gray-400 mt-1">Informe as horas exibidas no computador de bordo do veículo</p>
+                        </div>
+
                         <!-- Modo Horário -->
-                        <div id="modo-horario" class="grid grid-cols-2 gap-3">
+                        <div id="modo-horario" class="grid grid-cols-2 gap-3 hidden">
                             <div>
                                 <label class="block text-xs font-medium text-gray-600">Início do Trabalho</label>
                                 <input type="time" id="hora-inicio" class="mt-1 border p-2 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-blue-500" onchange="calcularHoras()">
@@ -271,13 +278,6 @@
                             <div class="col-span-2 bg-blue-50 px-3 py-2 rounded-md text-sm text-blue-700 font-medium" id="horas-calculadas" style="display:none">
                                 <i class="fas fa-check-circle mr-1"></i> Total: <span id="horas-calc-valor">0h 0min</span>
                             </div>
-                        </div>
-
-                        <!-- Modo Horímetro -->
-                        <div id="modo-horimetro" class="hidden">
-                            <label class="block text-xs font-medium text-gray-600">Horas de Direção (HH:MM)</label>
-                            <input type="time" id="horimetro" class="mt-1 border p-2 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-blue-500" oninput="calcularHoras()">
-                            <p class="text-xs text-gray-400 mt-1">Informe as horas exibidas no computador de bordo do veículo</p>
                         </div>
                     </div>
 
@@ -365,12 +365,18 @@
     let entradas = [];
     let metaMensal = 0;
     let chartInstance = null;
-    let modoHora = 'horario'; // 'horario' | 'horimetro'
+    let modoHora = 'horimetro'; // 'horimetro' | 'horario'
 
-    // Mês atual
+    function getDataHoje() {
+        const d = new Date();
+        return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    }
+
+    // Mês atual e data de hoje
     const hoje = new Date();
     const mesAtual = `${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,'0')}`;
     document.getElementById('filtro-mes').value = mesAtual;
+    document.getElementById('data').value = getDataHoje();
 
     // Dark mode
     if (localStorage.getItem('darkMode') === 'true') document.documentElement.classList.add('dark');
@@ -492,8 +498,9 @@
             db.collection("lancamentos").add(payload).then(() => {
                 document.getElementById('filtro-mes').value = data.substring(0, 7);
                 this.reset();
+                document.getElementById('data').value = getDataHoje();
                 document.getElementById('outros').value = '0';
-                setModoHora(modoHora);
+                setModoHora('horimetro');
                 btn.innerText = '<i class="fas fa-plus mr-1"></i> Adicionar Dia';
             }).finally(() => { btn.disabled = false; btn.innerHTML = '<i class="fas fa-plus mr-1"></i> Adicionar Dia'; });
         }
@@ -517,14 +524,14 @@
         document.getElementById('outros').value   = e.outros !== undefined ? e.outros : 0;
 
         // Restaurar modo de hora
-        if (e.modoHora === 'horimetro') {
-            setModoHora('horimetro');
-            document.getElementById('horimetro').value = e.horimetroHHMM || '';
-            calcularHoras();
-        } else {
+        if (e.modoHora === 'horario') {
             setModoHora('horario');
             if (e.horaInicio) document.getElementById('hora-inicio').value = e.horaInicio;
             if (e.horaFim)    document.getElementById('hora-fim').value    = e.horaFim;
+            calcularHoras();
+        } else {
+            setModoHora('horimetro');
+            document.getElementById('horimetro').value = e.horimetroHHMM || '';
             calcularHoras();
         }
 
@@ -539,8 +546,9 @@
     function cancelarEdicao() {
         document.getElementById('edit-id').value = '';
         document.getElementById('lancamento-form').reset();
+        document.getElementById('data').value = getDataHoje();
         document.getElementById('outros').value = '0';
-        setModoHora('horario');
+        setModoHora('horimetro');
         document.getElementById('titulo-form').innerText = "Novo Lançamento Diário";
         document.getElementById('titulo-form').className = "text-xl font-semibold mb-4 border-b pb-2 text-gray-800";
         document.getElementById('btn-submit').innerHTML = '<i class="fas fa-plus mr-1"></i> Adicionar Dia';
