@@ -742,11 +742,11 @@
                 const rPorHora = h  > 0 ? liq / h  : 0;
                 const rPorKm   = km > 0 ? liq / km : 0;
 
-                // Dia curto (≤ 4h): bom se R$/h >= 40 E R$/km >= 1,50
+                // Dia curto (≤ 4h): bom se R$/h >= 25 OU R$/km >= 1,20
                 // Dia longo (> 4h): bom se líquido >= média do mês (lógica antiga)
                 let bom, motivo;
                 if (h <= 4) {
-                    bom = rPorHora >= 40 && rPorKm >= 1.5;
+                    bom = rPorHora >= 25 || rPorKm >= 1.2;
                     motivo = bom
                         ? `✅ ${fmt(rPorHora)}/h · ${fmt(rPorKm)}/km`
                         : `⚠️ ${fmt(rPorHora)}/h · ${fmt(rPorKm)}/km`;
