@@ -16,550 +16,769 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
-    <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 
     <style>
-        .dark body { background-color: #111827; color: #f9fafb; }
-
-        /* Dark mode manual classes */
-        html.dark .bg-white { background-color: #1f2937 !important; }
+        html.dark .bg-white    { background-color: #1f2937 !important; }
         html.dark .bg-gray-100 { background-color: #111827 !important; }
-        html.dark .bg-gray-50 { background-color: #374151 !important; }
-        html.dark .bg-blue-50 { background-color: #1e3a5f !important; }
+        html.dark .bg-gray-50  { background-color: #374151 !important; }
+        html.dark .bg-blue-50  { background-color: #1e3a5f !important; }
         html.dark .text-gray-800 { color: #f3f4f6 !important; }
         html.dark .text-gray-700 { color: #d1d5db !important; }
         html.dark .text-gray-600 { color: #9ca3af !important; }
         html.dark .text-gray-500 { color: #6b7280 !important; }
         html.dark .border-b { border-color: #374151 !important; }
-        html.dark .border { border-color: #374151 !important; }
+        html.dark .border   { border-color: #374151 !important; }
         html.dark input, html.dark select { background-color: #374151 !important; color: #f3f4f6 !important; border-color: #4b5563 !important; }
-        html.dark .shadow-md { box-shadow: 0 4px 6px -1px rgba(0,0,0,0.4) !important; }
-        html.dark tr:hover { background-color: #374151 !important; }
+        html.dark .shadow-md  { box-shadow: 0 4px 6px -1px rgba(0,0,0,0.4) !important; }
+        html.dark tr:hover    { background-color: #374151 !important; }
         html.dark .hover\:bg-gray-50:hover { background-color: #374151 !important; }
+        html.dark #modal-dia  { background-color: #1f2937; }
 
-        /* Calendar styles */
-        .cal-day {
-            aspect-ratio: 1;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            border-radius: 8px;
-            font-size: 0.75rem;
-            cursor: default;
-            padding: 2px;
-            min-width: 0;
-        }
-        .cal-day.worked-good { background-color: #dcfce7; color: #166534; }
-        .cal-day.worked-bad  { background-color: #fee2e2; color: #991b1b; }
-        .cal-day.not-worked  { background-color: #f3f4f6; color: #9ca3af; }
-        .cal-day.future      { background-color: transparent; color: #d1d5db; }
-        .cal-day.empty       { background-color: transparent; }
+        /* Calendário */
+        .cal-day { aspect-ratio:1; display:flex; flex-direction:column; align-items:center; justify-content:center; border-radius:8px; font-size:0.7rem; padding:2px; min-width:0; transition: transform .1s; }
+        .cal-day.clickable { cursor: pointer; }
+        .cal-day.clickable:hover { transform: scale(1.1); }
+        .cal-day.worked-good { background-color:#dcfce7; color:#166534; }
+        .cal-day.worked-bad  { background-color:#fee2e2; color:#991b1b; }
+        .cal-day.not-worked  { background-color:#f3f4f6; color:#9ca3af; }
+        .cal-day.future      { background-color:transparent; color:#d1d5db; }
+        .cal-day.empty       { background-color:transparent; }
+        html.dark .cal-day.worked-good { background-color:#14532d; color:#bbf7d0; }
+        html.dark .cal-day.worked-bad  { background-color:#7f1d1d; color:#fecaca; }
+        html.dark .cal-day.not-worked  { background-color:#374151; color:#6b7280; }
+        html.dark .cal-day.future      { background-color:transparent; color:#4b5563; }
 
-        html.dark .cal-day.worked-good { background-color: #14532d; color: #bbf7d0; }
-        html.dark .cal-day.worked-bad  { background-color: #7f1d1d; color: #fecaca; }
-        html.dark .cal-day.not-worked  { background-color: #374151; color: #6b7280; }
-        html.dark .cal-day.future      { background-color: transparent; color: #4b5563; }
+        /* Barras de progresso */
+        .progress-green  { background-color:#22c55e !important; }
+        .progress-yellow { background-color:#eab308 !important; }
+        .progress-blue   { background-color:#3b82f6 !important; }
 
-        .progress-green { background-color: #22c55e !important; }
-        .progress-yellow { background-color: #eab308 !important; }
-        .progress-blue { background-color: #3b82f6 !important; }
+        /* Modal */
+        #modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:50; align-items:center; justify-content:center; }
+        #modal-overlay.open { display:flex; }
+        #modal-dia { background:#fff; border-radius:1rem; max-width:480px; width:92%; padding:1.5rem; position:relative; max-height:90vh; overflow-y:auto; }
+
+        /* Toggle de modo de hora */
+        .hora-tab { cursor:pointer; padding:6px 16px; border-radius:6px; font-size:.85rem; font-weight:600; transition:.2s; }
+        .hora-tab.active { background:#2563eb; color:#fff; }
+        .hora-tab:not(.active) { background:#f3f4f6; color:#374151; }
+        html.dark .hora-tab:not(.active) { background:#374151; color:#d1d5db; }
     </style>
 </head>
 <body class="bg-gray-100 font-sans pb-10 transition-colors duration-300">
 
-    <div class="container mx-auto p-4 max-w-6xl">
-        <!-- Header -->
-        <div class="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
-            <h1 class="text-3xl font-bold text-gray-800"><i class="fas fa-car-side text-blue-600"></i> Controle Financeiro</h1>
-            <div class="flex items-center gap-3">
-                <div class="flex items-center bg-white p-2 rounded-lg shadow-sm">
-                    <label class="font-medium text-gray-700 mr-2"><i class="far fa-calendar-alt"></i></label>
-                    <input type="month" id="filtro-mes" class="border-0 focus:ring-0 text-gray-700 font-semibold cursor-pointer" onchange="atualizarInterface()">
-                </div>
-                <button onclick="toggleDark()" class="bg-white p-2 w-10 h-10 rounded-lg shadow-sm text-gray-600 hover:text-blue-600 transition text-lg" title="Modo Escuro">
-                    <i class="fas fa-moon"></i>
-                </button>
+<!-- ═══ MODAL DETALHE DO DIA ═══════════════════════════════════════ -->
+<div id="modal-overlay" onclick="fecharModal(event)">
+    <div id="modal-dia">
+        <button onclick="fecharModalBtn()" class="absolute top-3 right-4 text-gray-400 hover:text-gray-700 text-2xl">&times;</button>
+        <h2 class="text-lg font-bold text-gray-800 mb-4" id="modal-titulo">Detalhe do Dia</h2>
+
+        <div class="grid grid-cols-2 gap-3 mb-4">
+            <div class="bg-green-50 rounded-lg p-3">
+                <p class="text-xs text-gray-500">Faturamento Bruto</p>
+                <p class="text-xl font-bold text-green-700" id="md-bruto">—</p>
+            </div>
+            <div class="bg-blue-50 rounded-lg p-3">
+                <p class="text-xs text-gray-500">Faturamento Líquido</p>
+                <p class="text-xl font-bold text-blue-700" id="md-liquido">—</p>
+            </div>
+            <div class="bg-red-50 rounded-lg p-3">
+                <p class="text-xs text-gray-500"><i class="fas fa-gas-pump text-yellow-500"></i> Combustível</p>
+                <p class="text-lg font-semibold text-red-600" id="md-combustivel">—</p>
+            </div>
+            <div class="bg-orange-50 rounded-lg p-3">
+                <p class="text-xs text-gray-500"><i class="fas fa-tools text-orange-400"></i> Manut./Refeição</p>
+                <p class="text-lg font-semibold text-orange-600" id="md-outros">—</p>
             </div>
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <!-- Coluna Esquerda: Resumo + Calendário -->
-            <div class="lg:col-span-1 space-y-6">
+        <div class="grid grid-cols-3 gap-2 mb-4">
+            <div class="text-center bg-gray-50 rounded-lg p-3">
+                <p class="text-xs text-gray-500"><i class="far fa-clock"></i> Horas</p>
+                <p class="font-bold text-gray-800" id="md-horas">—</p>
+            </div>
+            <div class="text-center bg-gray-50 rounded-lg p-3">
+                <p class="text-xs text-gray-500"><i class="fas fa-road"></i> KM</p>
+                <p class="font-bold text-gray-800" id="md-km">—</p>
+            </div>
+            <div class="text-center bg-gray-50 rounded-lg p-3">
+                <p class="text-xs text-gray-500"><i class="fas fa-tachometer-alt"></i> R$/KM</p>
+                <p class="font-bold text-gray-800" id="md-rkm">—</p>
+            </div>
+        </div>
 
-                <!-- Resumo -->
-                <div class="bg-white p-6 rounded-lg shadow-md">
-                    <h2 class="text-xl font-semibold mb-4 border-b pb-2 text-gray-800">Resumo do Mês</h2>
-                    <div class="mb-4">
-                        <label class="block text-sm font-medium text-gray-700">Meta Mensal (R$)</label>
-                        <div class="flex mt-1">
-                            <input type="number" id="meta-input" class="border p-2 rounded-l-md w-full focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Ex: 5000">
-                            <button onclick="salvarMeta()" class="bg-blue-600 text-white px-4 py-2 rounded-r-md hover:bg-blue-700">Salvar</button>
-                        </div>
-                    </div>
-                    <div class="space-y-4">
-                        <div class="bg-blue-50 p-4 rounded-lg">
-                            <p class="text-sm text-gray-500">Total Líquido Acumulado</p>
-                            <p class="text-2xl font-bold text-blue-700" id="resumo-total">R$ 0,00</p>
-                        </div>
-                        <div>
-                            <p class="text-sm text-gray-500 flex justify-between">
-                                <span>Progresso da Meta</span>
-                                <span id="resumo-progresso-txt" class="font-bold text-gray-700">0%</span>
-                            </p>
-                            <div class="w-full bg-gray-200 rounded-full h-3 mt-1">
-                                <div class="h-3 rounded-full transition-all duration-500 progress-blue" id="resumo-barra" style="width: 0%"></div>
-                            </div>
-                            <p class="text-xs mt-1" id="resumo-falta">Faltam: R$ 0,00</p>
-                        </div>
-                        <div class="grid grid-cols-2 gap-3 pt-4 border-t">
-                            <div class="bg-gray-50 p-3 rounded-lg">
-                                <p class="text-xs text-gray-500">Média/Hora</p>
-                                <p class="text-md font-semibold text-gray-800" id="resumo-hora">R$ 0,00</p>
-                            </div>
-                            <div class="bg-gray-50 p-3 rounded-lg">
-                                <p class="text-xs text-gray-500">Média/KM</p>
-                                <p class="text-md font-semibold text-gray-800" id="resumo-km">R$ 0,00</p>
-                            </div>
-                        </div>
-                        <!-- Breakdown de gastos -->
-                        <div class="pt-4 border-t">
-                            <p class="text-sm font-semibold text-gray-700 mb-2">Detalhamento de Gastos</p>
-                            <div class="space-y-2">
-                                <div class="flex justify-between text-sm">
-                                    <span class="text-gray-500"><i class="fas fa-gas-pump text-yellow-500 mr-1"></i> Combustível</span>
-                                    <span class="font-medium text-red-500" id="resumo-combustivel">R$ 0,00</span>
-                                </div>
-                                <div class="flex justify-between text-sm">
-                                    <span class="text-gray-500"><i class="fas fa-tools text-orange-500 mr-1"></i> Manut./Refeição</span>
-                                    <span class="font-medium text-red-500" id="resumo-outros">R$ 0,00</span>
-                                </div>
-                                <div class="flex justify-between text-sm border-t pt-2">
-                                    <span class="text-gray-500"><i class="fas fa-receipt text-gray-400 mr-1"></i> Faturamento Bruto</span>
-                                    <span class="font-medium text-gray-800" id="resumo-bruto">R$ 0,00</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+        <!-- Mini indicadores comparativos -->
+        <div class="border-t pt-3 space-y-2">
+            <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Comparativo com a média do mês</p>
+            <div>
+                <div class="flex justify-between text-xs mb-1">
+                    <span class="text-gray-600">R$/hora neste dia</span>
+                    <span class="font-bold" id="md-rhora">—</span>
                 </div>
-
-                <!-- Calendário -->
-                <div class="bg-white p-6 rounded-lg shadow-md">
-                    <h3 class="text-md font-semibold text-gray-700 mb-3"><i class="far fa-calendar text-blue-500 mr-1"></i> Calendário do Mês</h3>
-                    <div class="flex gap-2 flex-wrap mb-3 text-xs">
-                        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-green-200 inline-block"></span> Bom dia</span>
-                        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-red-200 inline-block"></span> Dia fraco</span>
-                        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-gray-200 inline-block"></span> Não trabalhou</span>
-                    </div>
-                    <div class="grid grid-cols-7 gap-1 text-center text-xs text-gray-500 mb-1">
-                        <div>D</div><div>S</div><div>T</div><div>Q</div><div>Q</div><div>S</div><div>S</div>
-                    </div>
-                    <div class="grid grid-cols-7 gap-1" id="calendario"></div>
-                </div>
-
-                <!-- Gráfico -->
-                <div class="bg-white p-6 rounded-lg shadow-md">
-                    <h3 class="text-md font-semibold text-gray-700 mb-2"><i class="fas fa-chart-bar text-blue-500 mr-1"></i> Faturamento Diário</h3>
-                    <canvas id="graficoFaturamento" height="200"></canvas>
+                <div class="w-full bg-gray-200 rounded-full h-2">
+                    <div class="h-2 rounded-full bg-blue-500 transition-all" id="md-rhora-bar" style="width:0%"></div>
                 </div>
             </div>
-
-            <!-- Coluna Direita: Formulário + Tabela -->
-            <div class="lg:col-span-2 space-y-6">
-
-                <!-- Formulário -->
-                <div class="bg-white p-6 rounded-lg shadow-md">
-                    <h2 class="text-xl font-semibold mb-4 border-b pb-2 text-gray-800" id="titulo-form">Novo Lançamento Diário</h2>
-                    <form id="lancamento-form" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <input type="hidden" id="edit-id" value="">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">Data</label>
-                            <input type="date" id="data" required class="mt-1 border p-2 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">Horas Trabalhadas</label>
-                            <input type="number" step="0.5" id="horas" required class="mt-1 border p-2 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">Faturamento Bruto (R$)</label>
-                            <input type="number" step="0.01" id="bruto" required class="mt-1 border p-2 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">Km Rodados</label>
-                            <input type="number" step="1" id="km" required class="mt-1 border p-2 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">Consumo do Carro (Km/L)</label>
-                            <input type="number" step="0.1" id="consumo" required class="mt-1 border p-2 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">Preço do Combustível (R$/L)</label>
-                            <input type="number" step="0.01" id="preco_litro" required class="mt-1 border p-2 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">Manutenção/Refeição (R$)</label>
-                            <input type="number" step="0.01" id="outros" required class="mt-1 border p-2 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        </div>
-                        <div class="md:col-span-2 mt-2 flex gap-2">
-                            <button type="submit" id="btn-submit" class="flex-1 bg-green-600 text-white font-bold py-2 px-4 rounded-md hover:bg-green-700 transition">
-                                <i class="fas fa-plus mr-1"></i> Adicionar Dia
-                            </button>
-                            <button type="button" id="btn-cancel" onclick="cancelarEdicao()" class="hidden bg-gray-500 text-white font-bold py-2 px-4 rounded-md hover:bg-gray-600 transition">
-                                Cancelar
-                            </button>
-                        </div>
-                    </form>
+            <div>
+                <div class="flex justify-between text-xs mb-1">
+                    <span class="text-gray-600">Líquido neste dia vs. melhor dia</span>
+                    <span class="font-bold" id="md-liq-pct">—</span>
                 </div>
-
-                <!-- Tabela -->
-                <div class="bg-white p-6 rounded-lg shadow-md overflow-x-auto">
-                    <div class="flex justify-between items-center mb-4 border-b pb-2">
-                        <h2 class="text-xl font-semibold text-gray-800">Histórico</h2>
-                        <button onclick="exportarExcel()" class="bg-emerald-600 text-white text-sm px-4 py-2 rounded-md hover:bg-emerald-700 transition">
-                            <i class="fas fa-file-excel mr-1"></i> Exportar Excel
-                        </button>
-                    </div>
-                    <table class="min-w-full text-sm text-left">
-                        <thead class="bg-gray-50 text-gray-600">
-                            <tr>
-                                <th class="py-2 px-3 border-b">Data</th>
-                                <th class="py-2 px-3 border-b">Horas</th>
-                                <th class="py-2 px-3 border-b">KM</th>
-                                <th class="py-2 px-3 border-b">Bruto</th>
-                                <th class="py-2 px-3 border-b">Gastos</th>
-                                <th class="py-2 px-3 border-b">Líquido</th>
-                                <th class="py-2 px-3 border-b text-center">Ações</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tabela-corpo"></tbody>
-                    </table>
+                <div class="w-full bg-gray-200 rounded-full h-2">
+                    <div class="h-2 rounded-full bg-green-500 transition-all" id="md-liq-bar" style="width:0%"></div>
                 </div>
             </div>
+        </div>
+
+        <div class="mt-4 text-center text-xs text-gray-400" id="md-horario-info"></div>
+    </div>
+</div>
+<!-- ═══════════════════════════════════════════════════════════════ -->
+
+<div class="container mx-auto p-4 max-w-6xl">
+    <!-- Header -->
+    <div class="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
+        <h1 class="text-3xl font-bold text-gray-800"><i class="fas fa-car-side text-blue-600"></i> Controle Financeiro</h1>
+        <div class="flex items-center gap-3">
+            <div class="flex items-center bg-white p-2 rounded-lg shadow-sm">
+                <label class="font-medium text-gray-700 mr-2"><i class="far fa-calendar-alt"></i></label>
+                <input type="month" id="filtro-mes" class="border-0 focus:ring-0 text-gray-700 font-semibold cursor-pointer" onchange="atualizarInterface()">
+            </div>
+            <button onclick="toggleDark()" class="bg-white p-2 w-10 h-10 rounded-lg shadow-sm text-gray-600 hover:text-blue-600 transition text-lg" title="Modo Escuro">
+                <i class="fas fa-moon"></i>
+            </button>
         </div>
     </div>
 
-    <script>
-        // ── Firebase ───────────────────────────────────────────────
-        const firebaseConfig = {
-            apiKey: "AIzaSyDxD4hm8RsTkihEL320tt5V1GH5dWyBIFE",
-            authDomain: "controle-financeiro-moto-b139a.firebaseapp.com",
-            projectId: "controle-financeiro-moto-b139a",
-            storageBucket: "controle-financeiro-moto-b139a.firebasestorage.app",
-            messagingSenderId: "711816668835",
-            appId: "1:711816668835:web:b085fb4cfd0ad66c528116"
-        };
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore();
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-        // ── Estado ─────────────────────────────────────────────────
-        let entradas = [];
-        let metaMensal = 0;
-        let chartInstance = null;
+        <!-- ── COLUNA ESQUERDA ──────────────────────────────── -->
+        <div class="lg:col-span-1 space-y-6">
 
-        // Mês atual padrão
-        const hoje = new Date();
-        const mesAtual = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`;
-        document.getElementById('filtro-mes').value = mesAtual;
+            <!-- Resumo Mensal -->
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <h2 class="text-xl font-semibold mb-4 border-b pb-2 text-gray-800">Resumo do Mês</h2>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700">Meta Mensal (R$)</label>
+                    <div class="flex mt-1">
+                        <input type="number" id="meta-input" class="border p-2 rounded-l-md w-full focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Ex: 5000">
+                        <button onclick="salvarMeta()" class="bg-blue-600 text-white px-4 py-2 rounded-r-md hover:bg-blue-700">Salvar</button>
+                    </div>
+                </div>
+                <div class="space-y-4">
+                    <div class="bg-blue-50 p-4 rounded-lg">
+                        <p class="text-sm text-gray-500">Total Líquido Acumulado</p>
+                        <p class="text-2xl font-bold text-blue-700" id="resumo-total">R$ 0,00</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-500 flex justify-between">
+                            <span>Progresso da Meta</span>
+                            <span id="resumo-progresso-txt" class="font-bold text-gray-700">0%</span>
+                        </p>
+                        <div class="w-full bg-gray-200 rounded-full h-3 mt-1">
+                            <div class="h-3 rounded-full transition-all duration-500 progress-blue" id="resumo-barra" style="width:0%"></div>
+                        </div>
+                        <p class="text-xs mt-1" id="resumo-falta">Faltam: R$ 0,00</p>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3 pt-4 border-t">
+                        <div class="bg-gray-50 p-3 rounded-lg">
+                            <p class="text-xs text-gray-500">Média/Hora</p>
+                            <p class="text-md font-semibold text-gray-800" id="resumo-hora">R$ 0,00</p>
+                        </div>
+                        <div class="bg-gray-50 p-3 rounded-lg">
+                            <p class="text-xs text-gray-500">Média/KM</p>
+                            <p class="text-md font-semibold text-gray-800" id="resumo-km">R$ 0,00</p>
+                        </div>
+                    </div>
+                    <div class="pt-3 border-t space-y-2">
+                        <p class="text-sm font-semibold text-gray-700">Detalhamento de Gastos</p>
+                        <div class="flex justify-between text-sm">
+                            <span class="text-gray-500"><i class="fas fa-gas-pump text-yellow-500 mr-1"></i> Combustível</span>
+                            <span class="font-medium text-red-500" id="resumo-combustivel">R$ 0,00</span>
+                        </div>
+                        <div class="flex justify-between text-sm">
+                            <span class="text-gray-500"><i class="fas fa-tools text-orange-500 mr-1"></i> Manut./Refeição</span>
+                            <span class="font-medium text-red-500" id="resumo-outros">R$ 0,00</span>
+                        </div>
+                        <div class="flex justify-between text-sm border-t pt-2">
+                            <span class="text-gray-500"><i class="fas fa-receipt text-gray-400 mr-1"></i> Faturamento Bruto</span>
+                            <span class="font-medium text-gray-800" id="resumo-bruto">R$ 0,00</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-        // Modo escuro persistente
-        if (localStorage.getItem('darkMode') === 'true') document.documentElement.classList.add('dark');
+            <!-- Calendário -->
+            <div class="bg-white p-5 rounded-lg shadow-md">
+                <h3 class="text-md font-semibold text-gray-700 mb-2"><i class="far fa-calendar text-blue-500 mr-1"></i> Calendário — clique no dia para ver detalhes</h3>
+                <div class="flex gap-2 flex-wrap mb-2 text-xs">
+                    <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-green-200 inline-block"></span> Bom</span>
+                    <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-red-200 inline-block"></span> Fraco</span>
+                    <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-gray-200 inline-block"></span> Não trabalhou</span>
+                </div>
+                <div class="grid grid-cols-7 gap-1 text-center text-xs text-gray-400 mb-1">
+                    <div>D</div><div>S</div><div>T</div><div>Q</div><div>Q</div><div>S</div><div>S</div>
+                </div>
+                <div class="grid grid-cols-7 gap-1" id="calendario"></div>
+            </div>
 
-        function toggleDark() {
-            document.documentElement.classList.toggle('dark');
-            localStorage.setItem('darkMode', document.documentElement.classList.contains('dark'));
-        }
+            <!-- Gráfico -->
+            <div class="bg-white p-5 rounded-lg shadow-md">
+                <h3 class="text-md font-semibold text-gray-700 mb-2"><i class="fas fa-chart-bar text-blue-500 mr-1"></i> Faturamento Diário (Líquido)</h3>
+                <canvas id="graficoFaturamento" height="200"></canvas>
+            </div>
+        </div>
 
-        // ── Formatação ─────────────────────────────────────────────
-        const fmt = (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
+        <!-- ── COLUNA DIREITA ───────────────────────────────── -->
+        <div class="lg:col-span-2 space-y-6">
 
-        // ── Firebase Listeners ─────────────────────────────────────
-        db.collection("config").doc("meta").onSnapshot((doc) => {
-            metaMensal = doc.exists ? (doc.data().valor || 0) : 0;
-            document.getElementById('meta-input').value = metaMensal > 0 ? metaMensal : '';
-            atualizarInterface();
-        });
+            <!-- Formulário -->
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <h2 class="text-xl font-semibold mb-4 border-b pb-2 text-gray-800" id="titulo-form">Novo Lançamento Diário</h2>
+                <form id="lancamento-form" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <input type="hidden" id="edit-id" value="">
 
-        db.collection("lancamentos").orderBy("data").onSnapshot((snapshot) => {
-            entradas = [];
-            snapshot.forEach((doc) => entradas.push({ id: doc.id, ...doc.data() }));
-            atualizarInterface();
-        });
+                    <!-- Data -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Data</label>
+                        <input type="date" id="data" required class="mt-1 border p-2 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
 
-        // ── Salvar Meta ────────────────────────────────────────────
-        function salvarMeta() {
-            const valor = parseFloat(document.getElementById('meta-input').value);
-            if (!isNaN(valor) && valor > 0) {
-                db.collection("config").doc("meta").set({ valor })
-                    .catch(e => alert('Erro ao salvar meta: ' + e));
+                    <!-- Modo de entrada de horas -->
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Modo de Registro de Horas</label>
+                        <div class="flex gap-2 mb-3">
+                            <span class="hora-tab active" id="tab-horario" onclick="setModoHora('horario')">
+                                <i class="fas fa-clock mr-1"></i> Horário (início/fim)
+                            </span>
+                            <span class="hora-tab" id="tab-horimetro" onclick="setModoHora('horimetro')">
+                                <i class="fas fa-tachometer-alt mr-1"></i> Horímetro
+                            </span>
+                        </div>
+
+                        <!-- Modo Horário -->
+                        <div id="modo-horario" class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600">Início do Trabalho</label>
+                                <input type="time" id="hora-inicio" class="mt-1 border p-2 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-blue-500" onchange="calcularHoras()">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600">Fim do Trabalho</label>
+                                <input type="time" id="hora-fim" class="mt-1 border p-2 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-blue-500" onchange="calcularHoras()">
+                            </div>
+                            <div class="col-span-2 bg-blue-50 px-3 py-2 rounded-md text-sm text-blue-700 font-medium" id="horas-calculadas" style="display:none">
+                                <i class="fas fa-check-circle mr-1"></i> Total: <span id="horas-calc-valor">0h 0min</span>
+                            </div>
+                        </div>
+
+                        <!-- Modo Horímetro -->
+                        <div id="modo-horimetro" class="hidden">
+                            <label class="block text-xs font-medium text-gray-600">Horas de Direção (ex: 6.5)</label>
+                            <input type="number" step="0.1" id="horimetro" class="mt-1 border p-2 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Ex: 6.5" oninput="calcularHoras()">
+                            <p class="text-xs text-gray-400 mt-1">Informe as horas do computador de bordo do veículo</p>
+                        </div>
+                    </div>
+
+                    <!-- Faturamento Bruto -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Faturamento Bruto (R$)</label>
+                        <input type="number" step="0.01" id="bruto" required class="mt-1 border p-2 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+
+                    <!-- KM Rodados -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Km Rodados</label>
+                        <input type="number" step="1" id="km" required class="mt-1 border p-2 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+
+                    <!-- Consumo -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Consumo do Carro (Km/L)</label>
+                        <input type="number" step="0.1" id="consumo" required class="mt-1 border p-2 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+
+                    <!-- Preço litro -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Preço do Combustível (R$/L)</label>
+                        <input type="number" step="0.01" id="preco_litro" required class="mt-1 border p-2 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+
+                    <!-- Outros -->
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-medium text-gray-700">Manutenção / Refeição (R$)</label>
+                        <input type="number" step="0.01" id="outros" required class="mt-1 border p-2 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+
+                    <div class="md:col-span-2 flex gap-2">
+                        <button type="submit" id="btn-submit" class="flex-1 bg-green-600 text-white font-bold py-2 px-4 rounded-md hover:bg-green-700 transition">
+                            <i class="fas fa-plus mr-1"></i> Adicionar Dia
+                        </button>
+                        <button type="button" id="btn-cancel" onclick="cancelarEdicao()" class="hidden bg-gray-500 text-white font-bold py-2 px-4 rounded-md hover:bg-gray-600 transition">
+                            Cancelar
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Tabela -->
+            <div class="bg-white p-6 rounded-lg shadow-md overflow-x-auto">
+                <div class="flex justify-between items-center mb-4 border-b pb-2">
+                    <h2 class="text-xl font-semibold text-gray-800">Histórico</h2>
+                    <button onclick="exportarExcel()" class="bg-emerald-600 text-white text-sm px-4 py-2 rounded-md hover:bg-emerald-700 transition">
+                        <i class="fas fa-file-excel mr-1"></i> Exportar Excel
+                    </button>
+                </div>
+                <table class="min-w-full text-sm text-left">
+                    <thead class="bg-gray-50 text-gray-600">
+                        <tr>
+                            <th class="py-2 px-3 border-b">Data</th>
+                            <th class="py-2 px-3 border-b">Período</th>
+                            <th class="py-2 px-3 border-b">KM</th>
+                            <th class="py-2 px-3 border-b">Bruto</th>
+                            <th class="py-2 px-3 border-b">Líquido</th>
+                            <th class="py-2 px-3 border-b text-center">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabela-corpo"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ── Firebase ──────────────────────────────────────────────────
+    const firebaseConfig = {
+        apiKey: "AIzaSyDxD4hm8RsTkihEL320tt5V1GH5dWyBIFE",
+        authDomain: "controle-financeiro-moto-b139a.firebaseapp.com",
+        projectId: "controle-financeiro-moto-b139a",
+        storageBucket: "controle-financeiro-moto-b139a.firebasestorage.app",
+        messagingSenderId: "711816668835",
+        appId: "1:711816668835:web:b085fb4cfd0ad66c528116"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    // ── Estado ────────────────────────────────────────────────────
+    let entradas = [];
+    let metaMensal = 0;
+    let chartInstance = null;
+    let modoHora = 'horario'; // 'horario' | 'horimetro'
+
+    // Mês atual
+    const hoje = new Date();
+    const mesAtual = `${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,'0')}`;
+    document.getElementById('filtro-mes').value = mesAtual;
+
+    // Dark mode
+    if (localStorage.getItem('darkMode') === 'true') document.documentElement.classList.add('dark');
+    function toggleDark() {
+        document.documentElement.classList.toggle('dark');
+        localStorage.setItem('darkMode', document.documentElement.classList.contains('dark'));
+    }
+
+    const fmt = v => new Intl.NumberFormat('pt-BR', { style:'currency', currency:'BRL' }).format(v);
+
+    // ── Modo de hora ──────────────────────────────────────────────
+    function setModoHora(modo) {
+        modoHora = modo;
+        document.getElementById('tab-horario').classList.toggle('active', modo === 'horario');
+        document.getElementById('tab-horimetro').classList.toggle('active', modo === 'horimetro');
+        document.getElementById('modo-horario').classList.toggle('hidden', modo !== 'horario');
+        document.getElementById('modo-horimetro').classList.toggle('hidden', modo !== 'horimetro');
+        // Resetar campos
+        document.getElementById('hora-inicio').value = '';
+        document.getElementById('hora-fim').value = '';
+        document.getElementById('horimetro').value = '';
+        document.getElementById('horas-calculadas').style.display = 'none';
+    }
+
+    function calcularHoras() {
+        if (modoHora === 'horario') {
+            const inicio = document.getElementById('hora-inicio').value;
+            const fim    = document.getElementById('hora-fim').value;
+            if (inicio && fim) {
+                const [ih, im] = inicio.split(':').map(Number);
+                const [fh, fm] = fim.split(':').map(Number);
+                let totalMin = (fh * 60 + fm) - (ih * 60 + im);
+                if (totalMin < 0) totalMin += 24 * 60; // virada de meia-noite
+                const h = Math.floor(totalMin / 60);
+                const m = totalMin % 60;
+                document.getElementById('horas-calc-valor').innerText = `${h}h ${m}min (${(totalMin/60).toFixed(2)}h)`;
+                document.getElementById('horas-calculadas').style.display = 'block';
+                return totalMin / 60;
             }
+        } else {
+            const val = parseFloat(document.getElementById('horimetro').value);
+            return isNaN(val) ? 0 : val;
+        }
+        return 0;
+    }
+
+    function obterHoras() {
+        if (modoHora === 'horario') {
+            const inicio = document.getElementById('hora-inicio').value;
+            const fim    = document.getElementById('hora-fim').value;
+            if (!inicio || !fim) { alert('Informe o horário de início e fim.'); return null; }
+            const [ih, im] = inicio.split(':').map(Number);
+            const [fh, fm] = fim.split(':').map(Number);
+            let totalMin = (fh * 60 + fm) - (ih * 60 + im);
+            if (totalMin <= 0) totalMin += 24 * 60;
+            return { horas: totalMin / 60, horaInicio: inicio, horaFim: fim, modoHora: 'horario' };
+        } else {
+            const val = parseFloat(document.getElementById('horimetro').value);
+            if (isNaN(val) || val <= 0) { alert('Informe as horas do horímetro.'); return null; }
+            return { horas: val, modoHora: 'horimetro' };
+        }
+    }
+
+    // ── Firebase listeners ────────────────────────────────────────
+    db.collection("config").doc("meta").onSnapshot(doc => {
+        metaMensal = doc.exists ? (doc.data().valor || 0) : 0;
+        document.getElementById('meta-input').value = metaMensal > 0 ? metaMensal : '';
+        atualizarInterface();
+    });
+
+    db.collection("lancamentos").orderBy("data").onSnapshot(snapshot => {
+        entradas = [];
+        snapshot.forEach(doc => entradas.push({ id: doc.id, ...doc.data() }));
+        atualizarInterface();
+    });
+
+    function salvarMeta() {
+        const valor = parseFloat(document.getElementById('meta-input').value);
+        if (!isNaN(valor) && valor > 0)
+            db.collection("config").doc("meta").set({ valor }).catch(e => alert('Erro: ' + e));
+    }
+
+    // ── Submit do formulário ──────────────────────────────────────
+    document.getElementById('lancamento-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const idEdit = document.getElementById('edit-id').value;
+
+        const horaInfo = obterHoras();
+        if (!horaInfo) return;
+
+        const data       = document.getElementById('data').value;
+        const bruto      = parseFloat(document.getElementById('bruto').value);
+        const km         = parseFloat(document.getElementById('km').value);
+        const consumo    = parseFloat(document.getElementById('consumo').value);
+        const precoLitro = parseFloat(document.getElementById('preco_litro').value);
+        const outros     = parseFloat(document.getElementById('outros').value);
+        const combustivel = (km / consumo) * precoLitro;
+        const liquido    = bruto - combustivel - outros;
+
+        const payload = { data, bruto, km, consumo, precoLitro, combustivel, outros, liquido, ...horaInfo };
+
+        const btn = document.getElementById('btn-submit');
+        btn.innerText = 'Salvando...';
+        btn.disabled = true;
+
+        if (idEdit) {
+            db.collection("lancamentos").doc(idEdit).update(payload).then(cancelarEdicao).finally(() => btn.disabled = false);
+        } else {
+            db.collection("lancamentos").add(payload).then(() => {
+                document.getElementById('filtro-mes').value = data.substring(0, 7);
+                this.reset();
+                setModoHora(modoHora);
+                btn.innerText = '<i class="fas fa-plus mr-1"></i> Adicionar Dia';
+            }).finally(() => { btn.disabled = false; btn.innerHTML = '<i class="fas fa-plus mr-1"></i> Adicionar Dia'; });
+        }
+    });
+
+    // ── CRUD ──────────────────────────────────────────────────────
+    function deletarEntrada(id) {
+        if (confirm("Tem certeza que deseja excluir este dia?"))
+            db.collection("lancamentos").doc(id).delete();
+    }
+
+    function editarEntrada(id) {
+        const e = entradas.find(e => e.id === id);
+        if (!e) return;
+        document.getElementById('edit-id').value  = e.id;
+        document.getElementById('data').value     = e.data;
+        document.getElementById('bruto').value    = e.bruto;
+        document.getElementById('km').value       = e.km;
+        document.getElementById('consumo').value  = e.consumo || '';
+        document.getElementById('preco_litro').value = e.precoLitro || '';
+        document.getElementById('outros').value   = e.outros;
+
+        // Restaurar modo de hora
+        if (e.modoHora === 'horimetro') {
+            setModoHora('horimetro');
+            document.getElementById('horimetro').value = e.horas;
+        } else {
+            setModoHora('horario');
+            if (e.horaInicio) document.getElementById('hora-inicio').value = e.horaInicio;
+            if (e.horaFim)    document.getElementById('hora-fim').value    = e.horaFim;
+            calcularHoras();
         }
 
-        // ── Formulário ─────────────────────────────────────────────
-        document.getElementById('lancamento-form').addEventListener('submit', function (e) {
-            e.preventDefault();
-            const idEdit = document.getElementById('edit-id').value;
-            const data       = document.getElementById('data').value;
-            const horas      = parseFloat(document.getElementById('horas').value);
-            const bruto      = parseFloat(document.getElementById('bruto').value);
-            const km         = parseFloat(document.getElementById('km').value);
-            const consumo    = parseFloat(document.getElementById('consumo').value);
-            const precoLitro = parseFloat(document.getElementById('preco_litro').value);
-            const outros     = parseFloat(document.getElementById('outros').value);
-            const combustivel = (km / consumo) * precoLitro;
-            const liquido    = bruto - combustivel - outros;
+        document.getElementById('titulo-form').innerText = "✏️ Editar Lançamento";
+        document.getElementById('titulo-form').className = "text-xl font-semibold mb-4 border-b pb-2 text-blue-600";
+        document.getElementById('btn-submit').innerText = "Salvar Alterações";
+        document.getElementById('btn-submit').className = "flex-1 bg-blue-600 text-white font-bold py-2 px-4 rounded-md hover:bg-blue-700 transition";
+        document.getElementById('btn-cancel').classList.remove('hidden');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
 
-            const payload = { data, horas, bruto, km, consumo, precoLitro, combustivel, outros, liquido };
+    function cancelarEdicao() {
+        document.getElementById('edit-id').value = '';
+        document.getElementById('lancamento-form').reset();
+        setModoHora('horario');
+        document.getElementById('titulo-form').innerText = "Novo Lançamento Diário";
+        document.getElementById('titulo-form').className = "text-xl font-semibold mb-4 border-b pb-2 text-gray-800";
+        document.getElementById('btn-submit').innerHTML = '<i class="fas fa-plus mr-1"></i> Adicionar Dia';
+        document.getElementById('btn-submit').className = "flex-1 bg-green-600 text-white font-bold py-2 px-4 rounded-md hover:bg-green-700 transition";
+        document.getElementById('btn-cancel').classList.add('hidden');
+    }
 
-            const btn = document.getElementById('btn-submit');
-            btn.innerText = 'Salvando...';
-            btn.disabled = true;
+    // ── Modal Detalhe do Dia ──────────────────────────────────────
+    function abrirModal(id) {
+        const e = entradas.find(e => e.id === id);
+        if (!e) return;
 
-            const done = () => { btn.disabled = false; };
+        const mes = document.getElementById('filtro-mes').value;
+        const filtradas = entradas.filter(f => f.data.startsWith(mes));
+        const melhorLiq = Math.max(...filtradas.map(f => f.liquido));
+        const mediaRhora = filtradas.length > 0
+            ? filtradas.reduce((acc, f) => acc + (f.horas > 0 ? f.liquido / f.horas : 0), 0) / filtradas.length
+            : 0;
 
-            if (idEdit) {
-                db.collection("lancamentos").doc(idEdit).update(payload).then(cancelarEdicao).finally(done);
+        const [ano, m, dia] = e.data.split('-');
+        document.getElementById('modal-titulo').innerText = `📅 ${dia}/${m}/${ano}`;
+        document.getElementById('md-bruto').innerText      = fmt(e.bruto);
+        document.getElementById('md-liquido').innerText    = fmt(e.liquido);
+        document.getElementById('md-combustivel').innerText = fmt(e.combustivel);
+        document.getElementById('md-outros').innerText     = fmt(e.outros);
+        document.getElementById('md-horas').innerText      = `${e.horas.toFixed(1)}h`;
+        document.getElementById('md-km').innerText         = `${e.km} km`;
+        document.getElementById('md-rkm').innerText        = e.km > 0 ? fmt(e.liquido / e.km) : '—';
+
+        const rhora = e.horas > 0 ? e.liquido / e.horas : 0;
+        document.getElementById('md-rhora').innerText = fmt(rhora);
+        const rhoraPct = mediaRhora > 0 ? Math.min((rhora / (mediaRhora * 2)) * 100, 100) : 0;
+        document.getElementById('md-rhora-bar').style.width = rhoraPct + '%';
+
+        const liqPct = melhorLiq > 0 ? Math.min((e.liquido / melhorLiq) * 100, 100) : 0;
+        document.getElementById('md-liq-pct').innerText = `${liqPct.toFixed(0)}% do melhor dia`;
+        document.getElementById('md-liq-bar').style.width = liqPct + '%';
+
+        // Info do horário
+        let horarioInfo = '';
+        if (e.modoHora === 'horario' && e.horaInicio && e.horaFim) {
+            horarioInfo = `⏱ ${e.horaInicio} → ${e.horaFim}`;
+        } else if (e.modoHora === 'horimetro') {
+            horarioInfo = `🕐 Horímetro: ${e.horas.toFixed(1)}h`;
+        }
+        document.getElementById('md-horario-info').innerText = horarioInfo;
+
+        document.getElementById('modal-overlay').classList.add('open');
+    }
+
+    function fecharModalBtn() {
+        document.getElementById('modal-overlay').classList.remove('open');
+    }
+    function fecharModal(e) {
+        if (e.target === document.getElementById('modal-overlay')) fecharModalBtn();
+    }
+
+    // ── Exportar Excel ────────────────────────────────────────────
+    function exportarExcel() {
+        const mes = document.getElementById('filtro-mes').value;
+        const filtradas = entradas.filter(e => e.data.startsWith(mes));
+        if (!filtradas.length) { alert('Nenhum dado para exportar.'); return; }
+
+        const dados = filtradas.map(e => ({
+            'Data': e.data,
+            'Início': e.horaInicio || '—',
+            'Fim': e.horaFim || '—',
+            'Horas': e.horas.toFixed(2),
+            'KM': e.km,
+            'Bruto (R$)': e.bruto.toFixed(2),
+            'Combustível (R$)': e.combustivel.toFixed(2),
+            'Manut./Ref. (R$)': e.outros.toFixed(2),
+            'Líquido (R$)': e.liquido.toFixed(2),
+        }));
+        const ws = XLSX.utils.json_to_sheet(dados);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Lançamentos");
+        XLSX.writeFile(wb, `controle_${mes}.xlsx`);
+    }
+
+    // ── Interface Principal ───────────────────────────────────────
+    function atualizarInterface() {
+        const mes = document.getElementById('filtro-mes').value;
+        const filtradas = entradas.filter(e => e.data.startsWith(mes));
+
+        let totalLiq = 0, totalHoras = 0, totalKm = 0, totalBruto = 0, totalComb = 0, totalOutros = 0;
+        const diasGraf = [], liqGraf = [];
+        const tbody = document.getElementById('tabela-corpo');
+        tbody.innerHTML = '';
+
+        filtradas.forEach(e => {
+            totalLiq    += e.liquido;
+            totalHoras  += e.horas;
+            totalKm     += e.km;
+            totalBruto  += e.bruto;
+            totalComb   += e.combustivel;
+            totalOutros += e.outros;
+
+            const [ano, m, dia] = e.data.split('-');
+            diasGraf.push(dia);
+            liqGraf.push(e.liquido);
+
+            // Período exibido na tabela
+            let periodo = '';
+            if (e.modoHora === 'horario' && e.horaInicio && e.horaFim)
+                periodo = `${e.horaInicio}–${e.horaFim}`;
+            else
+                periodo = `${e.horas ? e.horas.toFixed(1)+'h' : '—'}`;
+
+            const row = document.createElement('tr');
+            row.className = "hover:bg-gray-50 border-b cursor-pointer";
+            row.onclick = () => abrirModal(e.id);
+            row.innerHTML = `
+                <td class="py-2 px-3 font-medium">${dia}/${m}</td>
+                <td class="py-2 px-3 text-gray-600 text-xs">${periodo}</td>
+                <td class="py-2 px-3">${e.km} km</td>
+                <td class="py-2 px-3 text-gray-700">${fmt(e.bruto)}</td>
+                <td class="py-2 px-3 font-semibold ${e.liquido >= 0 ? 'text-green-600' : 'text-red-600'}">${fmt(e.liquido)}</td>
+                <td class="py-2 px-3 text-center space-x-2" onclick="event.stopPropagation()">
+                    <button onclick="editarEntrada('${e.id}')" class="text-blue-500 hover:text-blue-700" title="Editar"><i class="fas fa-edit"></i></button>
+                    <button onclick="deletarEntrada('${e.id}')" class="text-red-500 hover:text-red-700" title="Excluir"><i class="fas fa-trash"></i></button>
+                </td>`;
+            tbody.appendChild(row);
+        });
+
+        if (!filtradas.length)
+            tbody.innerHTML = `<tr><td colspan="6" class="py-6 text-center text-gray-500">Nenhum lançamento neste mês.</td></tr>`;
+
+        // Resumo
+        document.getElementById('resumo-total').innerText     = fmt(totalLiq);
+        document.getElementById('resumo-bruto').innerText     = fmt(totalBruto);
+        document.getElementById('resumo-combustivel').innerText = fmt(totalComb);
+        document.getElementById('resumo-outros').innerText    = fmt(totalOutros);
+        document.getElementById('resumo-hora').innerText = totalHoras > 0 ? fmt(totalLiq / totalHoras) : 'R$ 0,00';
+        document.getElementById('resumo-km').innerText   = totalKm > 0   ? fmt(totalLiq / totalKm)    : 'R$ 0,00';
+
+        const barra = document.getElementById('resumo-barra');
+        if (metaMensal > 0) {
+            const pct  = Math.max(0, (totalLiq / metaMensal) * 100);
+            const falta = metaMensal - totalLiq;
+            document.getElementById('resumo-progresso-txt').innerText = `${pct.toFixed(1)}%`;
+            barra.style.width = `${Math.min(pct, 100)}%`;
+            barra.classList.remove('progress-blue','progress-yellow','progress-green');
+            if (pct >= 100)     barra.classList.add('progress-green');
+            else if (pct >= 80) barra.classList.add('progress-yellow');
+            else                barra.classList.add('progress-blue');
+
+            const faltaEl = document.getElementById('resumo-falta');
+            if (falta > 0) { faltaEl.innerText = `Faltam: ${fmt(falta)}`; faltaEl.className = "text-xs text-red-500 mt-1"; }
+            else           { faltaEl.innerText = "🎉 Meta Atingida!";      faltaEl.className = "text-xs text-green-600 font-bold mt-1"; }
+        } else {
+            document.getElementById('resumo-progresso-txt').innerText = "0%";
+            barra.style.width = "0%";
+            const faltaEl = document.getElementById('resumo-falta');
+            faltaEl.innerText = "Defina uma meta acima";
+            faltaEl.className = "text-xs text-gray-500 mt-1";
+        }
+
+        renderCalendario(mes, filtradas);
+        renderGrafico(diasGraf, liqGraf);
+    }
+
+    // ── Calendário ────────────────────────────────────────────────
+    function renderCalendario(mes, filtradas) {
+        const [ano, m] = mes.split('-').map(Number);
+        const totalDias  = new Date(ano, m, 0).getDate();
+        const primeiroDia = new Date(ano, m - 1, 1).getDay();
+
+        const liquidoPorDia = {};
+        const idPorDia = {};
+        filtradas.forEach(e => {
+            const d = parseInt(e.data.split('-')[2]);
+            liquidoPorDia[d] = e.liquido;
+            idPorDia[d] = e.id;
+        });
+        const valores = Object.values(liquidoPorDia);
+        const mediaDia = valores.length > 0 ? valores.reduce((a,b)=>a+b,0)/valores.length : 0;
+
+        const hojeAno = hoje.getFullYear(), hojeM = hoje.getMonth()+1, hojeD = hoje.getDate();
+        const cal = document.getElementById('calendario');
+        cal.innerHTML = '';
+
+        for (let i = 0; i < primeiroDia; i++) {
+            const c = document.createElement('div');
+            c.className = 'cal-day empty'; cal.appendChild(c);
+        }
+
+        for (let d = 1; d <= totalDias; d++) {
+            const cell = document.createElement('div');
+            const isFuture = (ano > hojeAno) || (ano === hojeAno && m > hojeM) || (ano === hojeAno && m === hojeM && d > hojeD);
+
+            if (isFuture) {
+                cell.className = 'cal-day future';
+                cell.innerHTML = `<span>${d}</span>`;
+            } else if (liquidoPorDia[d] !== undefined) {
+                const liq = liquidoPorDia[d];
+                cell.className = `cal-day clickable ${liq >= mediaDia ? 'worked-good' : 'worked-bad'}`;
+                cell.innerHTML = `<span class="font-bold">${d}</span>`;
+                cell.title = `${d}/${m}: ${fmt(liq)} — clique para detalhes`;
+                cell.onclick = () => abrirModal(idPorDia[d]);
             } else {
-                db.collection("lancamentos").add(payload).then(() => {
-                    document.getElementById('filtro-mes').value = data.substring(0, 7);
-                    this.reset();
-                    btn.innerText = 'Adicionar Dia';
-                }).finally(done);
+                cell.className = 'cal-day not-worked';
+                cell.innerHTML = `<span>${d}</span>`;
             }
-        });
-
-        // ── CRUD ───────────────────────────────────────────────────
-        function deletarEntrada(id) {
-            if (confirm("Tem certeza que deseja excluir este dia?"))
-                db.collection("lancamentos").doc(id).delete();
+            cal.appendChild(cell);
         }
+    }
 
-        function editarEntrada(id) {
-            const e = entradas.find(e => e.id === id);
-            if (!e) return;
-            document.getElementById('edit-id').value = e.id;
-            document.getElementById('data').value = e.data;
-            document.getElementById('horas').value = e.horas;
-            document.getElementById('bruto').value = e.bruto;
-            document.getElementById('km').value = e.km;
-            document.getElementById('consumo').value = e.consumo || '';
-            document.getElementById('preco_litro').value = e.precoLitro || '';
-            document.getElementById('outros').value = e.outros;
-
-            const titulo = document.getElementById('titulo-form');
-            titulo.innerText = "Editar Lançamento";
-            titulo.className = "text-xl font-semibold mb-4 border-b pb-2 text-blue-600";
-
-            const btn = document.getElementById('btn-submit');
-            btn.innerText = "Salvar Alterações";
-            btn.className = "flex-1 bg-blue-600 text-white font-bold py-2 px-4 rounded-md hover:bg-blue-700 transition";
-            document.getElementById('btn-cancel').classList.remove('hidden');
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
-
-        function cancelarEdicao() {
-            document.getElementById('edit-id').value = '';
-            document.getElementById('lancamento-form').reset();
-            const titulo = document.getElementById('titulo-form');
-            titulo.innerText = "Novo Lançamento Diário";
-            titulo.className = "text-xl font-semibold mb-4 border-b pb-2 text-gray-800";
-            const btn = document.getElementById('btn-submit');
-            btn.innerText = "Adicionar Dia";
-            btn.className = "flex-1 bg-green-600 text-white font-bold py-2 px-4 rounded-md hover:bg-green-700 transition";
-            document.getElementById('btn-cancel').classList.add('hidden');
-        }
-
-        // ── Exportar Excel ─────────────────────────────────────────
-        function exportarExcel() {
-            const mes = document.getElementById('filtro-mes').value;
-            const filtradas = entradas.filter(e => e.data.startsWith(mes));
-            if (filtradas.length === 0) { alert('Nenhum dado para exportar neste mês.'); return; }
-
-            const dados = filtradas.map(e => ({
-                'Data': e.data,
-                'Horas Trabalhadas': e.horas,
-                'KM Rodados': e.km,
-                'Faturamento Bruto (R$)': e.bruto.toFixed(2),
-                'Combustível (R$)': e.combustivel.toFixed(2),
-                'Manut./Refeição (R$)': e.outros.toFixed(2),
-                'Faturamento Líquido (R$)': e.liquido.toFixed(2),
-            }));
-
-            const ws = XLSX.utils.json_to_sheet(dados);
-            const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "Lançamentos");
-            XLSX.writeFile(wb, `controle_${mes}.xlsx`);
-        }
-
-        // ── Interface Principal ────────────────────────────────────
-        function atualizarInterface() {
-            const mes = document.getElementById('filtro-mes').value;
-            const filtradas = entradas.filter(e => e.data.startsWith(mes));
-
-            let totalLiquido = 0, totalHoras = 0, totalKm = 0, totalBruto = 0, totalComb = 0, totalOutros = 0;
-            const diasGraf = [], liqGraf = [];
-            const tbody = document.getElementById('tabela-corpo');
-            tbody.innerHTML = '';
-
-            filtradas.forEach(e => {
-                totalLiquido  += e.liquido;
-                totalHoras    += e.horas;
-                totalKm       += e.km;
-                totalBruto    += e.bruto;
-                totalComb     += e.combustivel;
-                totalOutros   += e.outros;
-
-                const [ano, m, dia] = e.data.split('-');
-                diasGraf.push(dia);
-                liqGraf.push(e.liquido);
-
-                const gastos = e.combustivel + e.outros;
-                const row = document.createElement('tr');
-                row.className = "hover:bg-gray-50 border-b";
-                row.innerHTML = `
-                    <td class="py-2 px-3">${dia}/${m}/${ano}</td>
-                    <td class="py-2 px-3">${e.horas}h</td>
-                    <td class="py-2 px-3">${e.km} km</td>
-                    <td class="py-2 px-3 text-gray-700">${fmt(e.bruto)}</td>
-                    <td class="py-2 px-3 text-red-500">-${fmt(gastos)}</td>
-                    <td class="py-2 px-3 font-semibold ${e.liquido >= 0 ? 'text-green-600' : 'text-red-600'}">${fmt(e.liquido)}</td>
-                    <td class="py-2 px-3 text-center space-x-2">
-                        <button onclick="editarEntrada('${e.id}')" class="text-blue-500 hover:text-blue-700" title="Editar"><i class="fas fa-edit"></i></button>
-                        <button onclick="deletarEntrada('${e.id}')" class="text-red-500 hover:text-red-700" title="Excluir"><i class="fas fa-trash"></i></button>
-                    </td>`;
-                tbody.appendChild(row);
-            });
-
-            if (filtradas.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="7" class="py-6 text-center text-gray-500">Nenhum lançamento neste mês.</td></tr>`;
-            }
-
-            // Resumo
-            document.getElementById('resumo-total').innerText     = fmt(totalLiquido);
-            document.getElementById('resumo-bruto').innerText     = fmt(totalBruto);
-            document.getElementById('resumo-combustivel').innerText = fmt(totalComb);
-            document.getElementById('resumo-outros').innerText    = fmt(totalOutros);
-            document.getElementById('resumo-hora').innerText = totalHoras > 0 ? fmt(totalLiquido / totalHoras) : 'R$ 0,00';
-            document.getElementById('resumo-km').innerText   = totalKm > 0   ? fmt(totalLiquido / totalKm)    : 'R$ 0,00';
-
-            // Progresso da meta
-            const barra = document.getElementById('resumo-barra');
-            if (metaMensal > 0) {
-                const pct = Math.max(0, (totalLiquido / metaMensal) * 100);
-                const falta = metaMensal - totalLiquido;
-                document.getElementById('resumo-progresso-txt').innerText = `${pct.toFixed(1)}%`;
-                barra.style.width = `${Math.min(pct, 100)}%`;
-                barra.classList.remove('progress-blue', 'progress-yellow', 'progress-green');
-                if (pct >= 100) barra.classList.add('progress-green');
-                else if (pct >= 80) barra.classList.add('progress-yellow');
-                else barra.classList.add('progress-blue');
-
-                const faltaEl = document.getElementById('resumo-falta');
-                if (falta > 0) {
-                    faltaEl.innerText = `Faltam: ${fmt(falta)}`;
-                    faltaEl.className = "text-xs text-red-500 mt-1";
-                } else {
-                    faltaEl.innerText = "🎉 Meta Atingida!";
-                    faltaEl.className = "text-xs text-green-600 font-bold mt-1";
-                }
-            } else {
-                document.getElementById('resumo-progresso-txt').innerText = "0%";
-                barra.style.width = "0%";
-                document.getElementById('resumo-falta').innerText = "Defina uma meta acima";
-                document.getElementById('resumo-falta').className = "text-xs text-gray-500 mt-1";
-            }
-
-            // Calendário e gráfico
-            renderCalendario(mes, filtradas);
-            renderGrafico(diasGraf, liqGraf);
-        }
-
-        // ── Calendário ─────────────────────────────────────────────
-        function renderCalendario(mes, filtradas) {
-            const [ano, m] = mes.split('-').map(Number);
-            const totalDias = new Date(ano, m, 0).getDate();
-            const primeiroDia = new Date(ano, m - 1, 1).getDay(); // 0=Dom
-
-            // Calcular média dos dias trabalhados para definir "bom" vs "fraco"
-            const liquidosPorDia = {};
-            filtradas.forEach(e => {
-                const d = parseInt(e.data.split('-')[2]);
-                liquidosPorDia[d] = e.liquido;
-            });
-            const valores = Object.values(liquidosPorDia);
-            const mediaDia = valores.length > 0 ? valores.reduce((a, b) => a + b, 0) / valores.length : 0;
-
-            const hojeData = new Date();
-            const hojeAno = hojeData.getFullYear();
-            const hojeM = hojeData.getMonth() + 1;
-            const hojeD = hojeData.getDate();
-
-            const cal = document.getElementById('calendario');
-            cal.innerHTML = '';
-
-            // Células vazias antes do primeiro dia
-            for (let i = 0; i < primeiroDia; i++) {
-                const cell = document.createElement('div');
-                cell.className = 'cal-day empty';
-                cal.appendChild(cell);
-            }
-
-            for (let d = 1; d <= totalDias; d++) {
-                const cell = document.createElement('div');
-                const isFuture = (ano > hojeAno) || (ano === hojeAno && m > hojeM) || (ano === hojeAno && m === hojeM && d > hojeD);
-
-                if (isFuture) {
-                    cell.className = 'cal-day future';
-                    cell.innerHTML = `<span>${d}</span>`;
-                } else if (liquidosPorDia[d] !== undefined) {
-                    const liq = liquidosPorDia[d];
-                    cell.className = liq >= mediaDia ? 'cal-day worked-good' : 'cal-day worked-bad';
-                    cell.innerHTML = `<span class="font-bold">${d}</span><span class="text-xs">${fmt(liq).replace('R$', '').trim()}</span>`;
-                    cell.title = `${d}/${m}: ${fmt(liq)}`;
-                } else {
-                    cell.className = 'cal-day not-worked';
-                    cell.innerHTML = `<span>${d}</span>`;
-                }
-
-                cal.appendChild(cell);
-            }
-        }
-
-        // ── Gráfico ────────────────────────────────────────────────
-        function renderGrafico(labels, data) {
-            const ctx = document.getElementById('graficoFaturamento').getContext('2d');
-            if (chartInstance) chartInstance.destroy();
-            chartInstance = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels,
-                    datasets: [{
-                        data,
-                        backgroundColor: data.map(v => v >= 0 ? 'rgba(34,197,94,0.7)' : 'rgba(239,68,68,0.7)'),
-                        borderColor: data.map(v => v >= 0 ? 'rgb(22,163,74)' : 'rgb(220,38,38)'),
-                        borderWidth: 1,
-                        borderRadius: 4
-                    }]
+    // ── Gráfico ───────────────────────────────────────────────────
+    function renderGrafico(labels, data) {
+        const ctx = document.getElementById('graficoFaturamento').getContext('2d');
+        if (chartInstance) chartInstance.destroy();
+        chartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels,
+                datasets: [{
+                    data,
+                    backgroundColor: data.map(v => v >= 0 ? 'rgba(34,197,94,0.7)' : 'rgba(239,68,68,0.7)'),
+                    borderColor:     data.map(v => v >= 0 ? 'rgb(22,163,74)'        : 'rgb(220,38,38)'),
+                    borderWidth: 1, borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                onClick: (_, elements) => {
+                    if (elements.length > 0) {
+                        const idx = elements[0].index;
+                        const mes = document.getElementById('filtro-mes').value;
+                        const filtradas = entradas.filter(e => e.data.startsWith(mes));
+                        if (filtradas[idx]) abrirModal(filtradas[idx].id);
+                    }
                 },
-                options: {
-                    responsive: true,
-                    scales: { y: { beginAtZero: true } },
-                    plugins: { legend: { display: false } }
-                }
-            });
-        }
-    </script>
+                scales: { y: { beginAtZero: true } },
+                plugins: { legend: { display: false }, tooltip: { callbacks: {
+                    label: ctx => fmt(ctx.raw)
+                }}}
+            }
+        });
+    }
+</script>
 
-    <script>
-        // ── Service Worker (PWA) ───────────────────────────────────
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js')
-                    .then(() => console.log('✅ PWA: Service Worker registrado'))
-                    .catch(err => console.log('SW erro:', err));
-            });
-        }
-    </script>
+<script>
+    // ── Service Worker (PWA) ──────────────────────────────────────
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('/sw.js')
+                .then(() => console.log('✅ PWA: Service Worker registrado'))
+                .catch(err => console.log('SW erro:', err));
+        });
+    }
+</script>
 </body>
 </html>
