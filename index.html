@@ -308,7 +308,7 @@
                     <!-- Outros -->
                     <div class="md:col-span-2">
                         <label class="block text-sm font-medium text-gray-700">Manutenção / Refeição (R$)</label>
-                        <input type="number" step="0.01" id="outros" required class="mt-1 border p-2 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <input type="number" step="0.01" id="outros" value="0" class="mt-1 border p-2 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-blue-500">
                     </div>
 
                     <div class="md:col-span-2 flex gap-2">
@@ -476,7 +476,7 @@
         const km         = parseFloat(document.getElementById('km').value);
         const consumo    = parseFloat(document.getElementById('consumo').value);
         const precoLitro = parseFloat(document.getElementById('preco_litro').value);
-        const outros     = parseFloat(document.getElementById('outros').value);
+        const outros     = parseFloat(document.getElementById('outros').value) || 0;
         const combustivel = (km / consumo) * precoLitro;
         const liquido    = bruto - combustivel - outros;
 
@@ -492,6 +492,7 @@
             db.collection("lancamentos").add(payload).then(() => {
                 document.getElementById('filtro-mes').value = data.substring(0, 7);
                 this.reset();
+                document.getElementById('outros').value = '0';
                 setModoHora(modoHora);
                 btn.innerText = '<i class="fas fa-plus mr-1"></i> Adicionar Dia';
             }).finally(() => { btn.disabled = false; btn.innerHTML = '<i class="fas fa-plus mr-1"></i> Adicionar Dia'; });
@@ -513,7 +514,7 @@
         document.getElementById('km').value       = e.km;
         document.getElementById('consumo').value  = e.consumo || '';
         document.getElementById('preco_litro').value = e.precoLitro || '';
-        document.getElementById('outros').value   = e.outros;
+        document.getElementById('outros').value   = e.outros !== undefined ? e.outros : 0;
 
         // Restaurar modo de hora
         if (e.modoHora === 'horimetro') {
@@ -538,6 +539,7 @@
     function cancelarEdicao() {
         document.getElementById('edit-id').value = '';
         document.getElementById('lancamento-form').reset();
+        document.getElementById('outros').value = '0';
         setModoHora('horario');
         document.getElementById('titulo-form').innerText = "Novo Lançamento Diário";
         document.getElementById('titulo-form').className = "text-xl font-semibold mb-4 border-b pb-2 text-gray-800";
