@@ -275,9 +275,9 @@
 
                         <!-- Modo Horímetro -->
                         <div id="modo-horimetro" class="hidden">
-                            <label class="block text-xs font-medium text-gray-600">Horas de Direção (ex: 6.5)</label>
-                            <input type="number" step="0.1" id="horimetro" class="mt-1 border p-2 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Ex: 6.5" oninput="calcularHoras()">
-                            <p class="text-xs text-gray-400 mt-1">Informe as horas do computador de bordo do veículo</p>
+                            <label class="block text-xs font-medium text-gray-600">Horas de Direção (HH:MM)</label>
+                            <input type="time" id="horimetro" class="mt-1 border p-2 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-blue-500" oninput="calcularHoras()">
+                            <p class="text-xs text-gray-400 mt-1">Informe as horas exibidas no computador de bordo do veículo</p>
                         </div>
                     </div>
 
@@ -406,14 +406,21 @@
                 if (totalMin < 0) totalMin += 24 * 60; // virada de meia-noite
                 const h = Math.floor(totalMin / 60);
                 const m = totalMin % 60;
-                document.getElementById('horas-calc-valor').innerText = `${h}h ${m}min (${(totalMin/60).toFixed(2)}h)`;
+                document.getElementById('horas-calc-valor').innerText = `${h}h ${m}min`;
                 document.getElementById('horas-calculadas').style.display = 'block';
                 return totalMin / 60;
             }
         } else {
-            const val = parseFloat(document.getElementById('horimetro').value);
-            return isNaN(val) ? 0 : val;
+            const val = document.getElementById('horimetro').value; // "HH:MM"
+            if (val) {
+                const [h, m] = val.split(':').map(Number);
+                const totalMin = h * 60 + m;
+                document.getElementById('horas-calc-valor').innerText = `${h}h ${m}min`;
+                document.getElementById('horas-calculadas').style.display = 'block';
+                return totalMin / 60;
+            }
         }
+        document.getElementById('horas-calculadas').style.display = 'none';
         return 0;
     }
 
@@ -428,9 +435,12 @@
             if (totalMin <= 0) totalMin += 24 * 60;
             return { horas: totalMin / 60, horaInicio: inicio, horaFim: fim, modoHora: 'horario' };
         } else {
-            const val = parseFloat(document.getElementById('horimetro').value);
-            if (isNaN(val) || val <= 0) { alert('Informe as horas do horímetro.'); return null; }
-            return { horas: val, modoHora: 'horimetro' };
+            const val = document.getElementById('horimetro').value; // "HH:MM"
+            if (!val) { alert('Informe as horas do horímetro.'); return null; }
+            const [h, m] = val.split(':').map(Number);
+            const totalMin = h * 60 + m;
+            if (totalMin <= 0) { alert('Informe um tempo válido no horímetro.'); return null; }
+            return { horas: totalMin / 60, horimetroHHMM: val, modoHora: 'horimetro' };
         }
     }
 
@@ -508,7 +518,8 @@
         // Restaurar modo de hora
         if (e.modoHora === 'horimetro') {
             setModoHora('horimetro');
-            document.getElementById('horimetro').value = e.horas;
+            document.getElementById('horimetro').value = e.horimetroHHMM || '';
+            calcularHoras();
         } else {
             setModoHora('horario');
             if (e.horaInicio) document.getElementById('hora-inicio').value = e.horaInicio;
@@ -569,9 +580,9 @@
         // Info do horário
         let horarioInfo = '';
         if (e.modoHora === 'horario' && e.horaInicio && e.horaFim) {
-            horarioInfo = `⏱ ${e.horaInicio} → ${e.horaFim}`;
+            horarioInfo = `⏱ Horário: ${e.horaInicio} → ${e.horaFim}`;
         } else if (e.modoHora === 'horimetro') {
-            horarioInfo = `🕐 Horímetro: ${e.horas.toFixed(1)}h`;
+            horarioInfo = `🕐 Horímetro: ${e.horimetroHHMM || e.horas.toFixed(1) + 'h'}`;
         }
         document.getElementById('md-horario-info').innerText = horarioInfo;
 
