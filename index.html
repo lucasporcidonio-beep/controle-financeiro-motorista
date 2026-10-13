@@ -707,14 +707,14 @@
         const totalDias  = new Date(ano, m, 0).getDate();
         const primeiroDia = new Date(ano, m - 1, 1).getDay();
 
-        const liquidoPorDia = {};
+        const dadosPorDia = {};
         const idPorDia = {};
         filtradas.forEach(e => {
             const d = parseInt(e.data.split('-')[2]);
-            liquidoPorDia[d] = e.liquido;
+            dadosPorDia[d] = e;
             idPorDia[d] = e.id;
         });
-        const valores = Object.values(liquidoPorDia);
+        const valores = Object.values(dadosPorDia).map(e => e.liquido);
         const mediaDia = valores.length > 0 ? valores.reduce((a,b)=>a+b,0)/valores.length : 0;
 
         const hojeAno = hoje.getFullYear(), hojeM = hoje.getMonth()+1, hojeD = hoje.getDate();
@@ -733,11 +733,33 @@
             if (isFuture) {
                 cell.className = 'cal-day future';
                 cell.innerHTML = `<span>${d}</span>`;
-            } else if (liquidoPorDia[d] !== undefined) {
-                const liq = liquidoPorDia[d];
-                cell.className = `cal-day clickable ${liq >= mediaDia ? 'worked-good' : 'worked-bad'}`;
+            } else if (dadosPorDia[d] !== undefined) {
+                const e   = dadosPorDia[d];
+                const liq = e.liquido;
+                const h   = e.horas  || 0;
+                const km  = e.km     || 0;
+
+                const rPorHora = h  > 0 ? liq / h  : 0;
+                const rPorKm   = km > 0 ? liq / km : 0;
+
+                // Dia curto (≤ 4h): bom se R$/h >= 40 E R$/km >= 1,50
+                // Dia longo (> 4h): bom se líquido >= média do mês (lógica antiga)
+                let bom, motivo;
+                if (h <= 4) {
+                    bom = rPorHora >= 40 && rPorKm >= 1.5;
+                    motivo = bom
+                        ? `✅ ${fmt(rPorHora)}/h · ${fmt(rPorKm)}/km`
+                        : `⚠️ ${fmt(rPorHora)}/h · ${fmt(rPorKm)}/km`;
+                } else {
+                    bom = liq >= mediaDia;
+                    motivo = bom
+                        ? `✅ Acima da média (${fmt(mediaDia)})`
+                        : `⚠️ Abaixo da média (${fmt(mediaDia)})`;
+                }
+
+                cell.className = `cal-day clickable ${bom ? 'worked-good' : 'worked-bad'}`;
                 cell.innerHTML = `<span class="font-bold">${d}</span>`;
-                cell.title = `${d}/${m}: ${fmt(liq)} — clique para detalhes`;
+                cell.title = `${d}/${m}: ${fmt(liq)} — ${motivo}`;
                 cell.onclick = () => abrirModal(idPorDia[d]);
             } else {
                 cell.className = 'cal-day not-worked';
